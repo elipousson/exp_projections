@@ -1,0 +1,387 @@
+retrieve_analyst_calcs <- function() {
+
+  if (params$qt == 1) {
+    file <- paste0("quarterly_outputs/FY",
+           params$fy - 1, " Q3 Analyst Calcs.csv")
+  } else {
+    file <- paste0("quarterly_outputs/FY",
+           params$fy, " Q", params$qt - 1, " Analyst Calcs.csv")
+  }
+  
+  import(file) %>%
+    mutate_at(vars(ends_with("ID")), as.character) %>%
+    select(-ends_with("Name"), -`Total Budget`)
+  
+}
+
+# Projection and Surplus/Deficit formulas ####
+make_proj_formulas <- function(df, manual = "zero") {
+  
+  # manual should be "zero" if manual OSOs should default to 0, or "last" if they
+  # should be the same as last qt
+  
+  df %<>%
+    mutate(
+      Projection =
+        paste0(
+          'IF([', internal$col.calc,
+          ']="At Budget",[Total Budget], IF([', internal$col.calc,
+          ']="YTD", [YTD Exp], IF([', internal$col.calc,
+          ']="No Funds Expended", 0, IF([', internal$col.calc,
+          ']="Straight", ([YTD Exp]/', internal$months.in, ')*12, IF([', internal$col.calc,
+          ']="YTD & Encumbrance", [YTD Exp] + [Total Encumbrance], IF([', internal$col.calc,
+          ']="Manual",',
+          switch(manual, "zero" = "0,",
+                 "last" = paste0('[', internal$col.lastproj, '],')),
+          'IF([', internal$col.calc,
+          ']="Straight & Encumbrance", (([YTD Exp]/', internal$months.in, 
+          ')*12) + [Total Encumbrance], IF([', internal$col.calc,
+          ']="Seasonal",', internal$seasonal,',0))))))))'),
+      `Surplus/Deficit` = paste0("[Total Budget] - [", internal$col.proj, "]"))
+  
+}
+
+# Pivot tables ####
+make_pivots <- function(df, type, proj = "quarterly") {
+  
+  # Excel SUMIFS to approximate pivot tables
+  
+  df %<>%
+    mutate(
+      !!sym(paste0("FY", params$fy, " Adopted")) :=
+        paste0("SUMIFS(Table3[FY", params$fy, " Adopted],Table3[", type, " ID],[",
+               type, " ID],Table3[Fund ID],[Fund ID])"),
+      `Total Budget` =
+        paste0("SUMIFS(Table3[Total Budget],Table3[", type,
+               " ID],[", type, " ID],Table3[Fund ID],[Fund ID])"),
+      `YTD Exp` = 
+        paste0("SUMIFS(Table3[YTD Exp],Table3[", type, " ID],[", type,
+               " ID],Table3[Fund ID],[Fund ID])"))
+  
+  if (proj == "monthly") {
+    df %<>%
+      mutate(
+        !!paste0("Q", params$qt, " Projection") := 
+          paste0("SUMIFS(Table3[Q", params$qt," Projection],Table3[", type, " ID],[", 
+                 type, " ID],Table3[Fund ID],[Fund ID])"))
+  } else {
+    if (params$qt == 2 ) {
+      df %<>% 
+        mutate(
+          `Q1 Projection` = 
+            paste0("SUMIFS(Table3[Q1 Projection],Table3[", type, " ID],[",
+                   type, " ID],Table3[Fund ID],[Fund ID])"))
+    }
+    
+    if (params$qt == 3 ) {
+      df %<>%
+        mutate(
+          `Q2 Projection` =
+            paste0("SUMIFS(Table3[Q2 Projection],Table3[", type, " ID],[", 
+                   type, " ID],Table3[Fund ID],[Fund ID])"))
+    }
+  }
+
+  df %<>%
+    mutate(!!internal$col.proj := paste0("SUMIFS(Table3[", !!internal$col.proj,
+                                         "],Table3[", type, " ID],[", type, " ID],Table3[Fund ID],[Fund ID])"),
+           !!internal$col.surdef := paste0("SUMIFS(Table3[", !!internal$col.surdef,
+                                           "],Table3[", type, " ID],[", type, " ID],Table3[Fund ID],[Fund ID])"))
+  if (proj == "monthly") {
+    df %<>%
+      mutate(`Projection Diff` = 
+               paste0("[", internal$col.proj, "]-[",
+                      paste0("Q", params$qt, " Projection]")))
+  } else {
+    if (params$qt != 1) {
+      df %<>%
+        mutate(`Projection Diff` = 
+                 paste0("[", internal$col.proj, "]-[",
+                        paste0("Q", params$qt - 1, " Projection]")))  
+    }
+  }
+  
+  return(df)
+  
+}
+
+apply_formula <- function(df, cols) {
+  for (i in cols) {
+    class(df[[i]]) <- "formula"
+  }
+  
+  return(df)
+}
+
+
+
+subset_agency_data <- function(agency_id, proj = "quarterly") {
+  
+  tryCatch({
+    
+    if (agency_id == "casino") {
+      
+      data <- list(
+        line.item = expend %>% 
+          filter(grepl("casino|pimlico", `Activity Name`, ignore.case = TRUE)),
+        analyst = "Rachel Zinn",
+        agency = "Casino Funds")
+      
+      data$object <- data$line.item %>%
+        distinct( `Fund ID`, `Fund Name`, `Object ID`, `Object Name`) %>%
+        arrange(`Fund ID`) %>%
+        make_pivots("Object", proj)
+      
+      data$subobject <- data$line.item %>%
+        distinct( `Fund ID`, `Fund Name`, `Subobject ID`, `Subobject Name`) %>%
+        arrange(`Fund ID`) %>%
+        make_pivots("Subobject", proj)
+      
+      data$program.surdef <- data$line.item %>%
+        distinct(`Fund ID`, `Fund Name`, `Service ID`, `Service Name`) %>%
+        arrange(`Fund ID`)
+      
+      data$program.surdef %<>%
+        bind_cols(obj.bind[1:nrow(data$program.surdef),]) %>%
+        mutate_if(is.factor, as.character)
+      
+    } else if (agency_id == "parking") {
+    
+      data <- list(
+        line.item = expend %>% 
+          filter(`Fund ID` %in% c("2075", "2076")),
+        analyst = "Rachel Zinn",
+        agency = "Parking Funds")
+      
+      data$object <- data$line.item %>%
+        distinct( `Fund ID`, `Fund Name`, `Object ID`, `Object Name`) %>%
+        arrange(`Fund ID`) %>%
+        make_pivots("Object", proj)
+      
+      data$subobject <- data$line.item %>%
+        distinct( `Fund ID`, `Fund Name`, `Subobject ID`, `Subobject Name`) %>%
+        arrange(`Fund ID`) %>%
+        make_pivots("Subobject", proj)
+      
+      data$program.surdef <- data$line.item %>%
+        distinct(`Fund ID`, `Fund Name`, `Service ID`, `Service Name`) %>%
+        arrange(`Fund ID`)
+      
+      data$program.surdef %<>%
+        bind_cols(obj.bind[1:nrow(data$program.surdef),]) %>%
+        mutate_if(is.factor, as.character)
+      
+    } else {
+      
+      data <- list(
+        line.item = expend %>%
+          filter(`Fund ID` == "1000"),
+        analyst = analysts,
+        agency = analysts,
+        object = object,
+        subobject = subobject,
+        program.surdef = program.surdef) %>%map(filter, `Agency ID` == agency_id) %>%
+        map(ungroup)
+      
+      data$analyst %<>% extract2("Analyst")
+      data$agency %<>% extract2("Agency Name - Cleaned")
+      
+      data[c("object", "subobject", "program.surdef")] %<>%
+        map(select, -starts_with("Agency"))
+    }
+    
+    if (proj == "monthly") {
+
+      data$file <- paste0("monthly_dist/", data$analyst, "/",
+                          data$agency, " FY", params$fy, " ", internal$month,
+                          " Projections.xlsx")
+      
+    } else {
+
+      data$file <- paste0("quarterly_dist/", data$analyst, "/",
+                          data$agency, " FY", params$fy, " Q", params$qt,
+                          " Projections.xlsx")
+    }
+
+    return(data)
+  },
+  
+  error = function(cond) {
+    
+    warning("Data for ", agency_id, " could not be subset: ", cond)
+    
+  }
+  )
+}
+
+export_projections_tab <- function(agency_id, list) {
+  
+  tryCatch({
+    style <- list(cell.bg = createStyle(fgFill = "lightcyan", border = "TopBottomLeftRight",
+                                        borderColour = "white"),
+                  formula.num = createStyle(numFmt = "#,##0"),
+                  negative = createStyle(fontColour = "#9C0006"))
+    
+    agency_id <- as.character(agency_id)
+    data <- list[[agency_id]]
+    
+    style$rows <- 2:nrow(data$line.item)
+    
+    # custom formatting for projections tab
+    excel <- data$line.item %>%
+      export_excel(
+        "Projection", data$file, "new",
+        col.width = rep(15, ncol(.)), save = FALSE)
+    # https://github.com/awalker89/openxlsx/issues/348
+    # dataValidation(
+    #   excel,  1, rows = style$rows, type = "list", value = "Calcs!$A$2:$A$10",
+    #   cols = grep(internal$col.calc, names(data$line.item)))
+    conditionalFormatting(
+      excel, 1, rows = style$rows, style = style$negative,
+      type = "expression", rule = "<0",
+      cols = grep(paste0(c(internal$col.proj, internal$col.surdef),
+                         collapse = "|"), names(data$line.item)))
+    addStyle(excel, 1, style$cell.bg, rows = 1,
+             gridExpand = TRUE, stack = FALSE,
+             cols = grep(paste0(c(internal$col.proj, internal$col.calc), 
+                                collapse = "|"), names(data$line.item)))
+    addStyle(excel, 1, style$formula.num, rows = style$rows, 
+             gridExpand = TRUE, stack = FALSE,
+             cols = grep(paste0(c(internal$col.proj, internal$col.surdef),
+                                collapse = "|"), names(data$line.item)))
+    saveWorkbook(excel, data$file, overwrite = TRUE)
+    
+    # needed for validation of Qx Calculation column
+    export_excel(calc.list, "Calcs", data$file, "existing", visible = FALSE)
+    
+  },
+  
+  error = function(cond) {
+    
+    warning("Projections tab could not be generated for ", agency_id, ". ", cond)
+    
+  }
+  )
+}
+
+apply_excel_formulas <- function(agency_id, list) {
+  
+  agency_id <- as.character(agency_id)
+  data <- list[[agency_id]]
+  
+  # formula just wasn't picking up when done for larger df
+  data$line.item %<>% 
+    apply_formula(c(internal$col.proj, internal$col.surdef))
+  
+  data$program.surdef %<>%
+    apply_formula(paste("Object", 0:9))
+  
+  if (params$qt != 1) {
+    data$object %<>%
+      apply_formula(
+        ., c(names(.)[grep(paste0("Q", 1:4, collapse = "|"), names(.))],
+             names(.)[grep(paste0(internal$month, collapse = "|"), names(.))],
+             internal$col.adopted, "Total Budget", "YTD Exp", "Projection Diff"))
+    data$subobject %<>%
+      apply_formula(
+        ., c(names(.)[grep(paste0("Q", 1:4, collapse = "|"), names(.))],
+             names(.)[grep(paste0(internal$month, collapse = "|"), names(.))],
+             internal$col.adopted, "Total Budget", "YTD Exp", "Projection Diff"))
+  } else {
+    data$object %<>% 
+      apply_formula(
+        ., c(names(.)[grep(paste0("Q", 1:4, collapse = "|"), names(.))],
+             internal$col.adopted, "Total Budget", "YTD Exp"))
+    data$subobject %<>% 
+      apply_formula(
+        ., c(names(.)[grep(paste0("Q", 1:4, collapse = "|"), names(.))],
+             internal$col.adopted, "Total Budget", "YTD Exp"))
+  }
+  
+  return(data)
+}
+
+export_pivot_tabs <- function(agency_id, list) {
+  
+  tryCatch({
+    style <- list(cell.bg = createStyle(fgFill = "lightcyan", border = "TopBottomLeftRight",
+                                        borderColour = "white"),
+                  formula.num = createStyle(numFmt = "#,##0"),
+                  negative = createStyle(fontColour = "#9C0006"))
+    
+    data <- list[[agency_id]]
+    
+    style$rows <- 2:nrow(data$line.item)
+    
+    # object
+    style$cols <- grep(
+      paste0(paste0("Q", 1:4, collapse = "|"),
+             "|", internal$month,
+             "|Total Budget|YTD Exp|Projection Diff|", 
+             internal$col.adopted, collapse = "|"),
+      names(data$object))
+    style$rows <- 2:nrow(data$object)
+    
+    excel <- data$object %>%
+      export_excel(
+        "Pivot-Object", data$file, "existing",
+        col.width = c("auto", "auto", ncol(.) - 2), save = FALSE)
+    addStyle(
+      excel, "Pivot-Object", style$cell.bg, rows = 1,
+      gridExpand = TRUE, stack = FALSE,
+      cols = grep(paste0(c(internal$col.proj, internal$col.surdef),
+                         collapse = "|"), names(data$object)))
+    conditionalFormatting(
+      excel, "Pivot-Object", rows = style$rows, style = style$negative,
+      type = "expression", rule = "<0",
+      cols = grep(paste0(c(internal$col.proj, internal$col.surdef),
+                         collapse = "|"), names(data$object)))
+    addStyle(excel, "Pivot-Object", style$formula.num, cols = style$cols,
+             rows = style$rows, gridExpand = TRUE, stack = FALSE)
+    saveWorkbook(excel, data$file, overwrite = TRUE)
+    
+    # subobject
+    style$rows <- 2:nrow(data$subobject)
+    excel <- data$subobject %>%
+      export_excel(
+        "Pivot-Subobject", data$file, "existing",
+        col.width = c(rep("auto", 4), rep(15, ncol(.) - 4)), save = FALSE)
+    addStyle(excel, "Pivot-Subobject", style$cell.bg, rows = 1,
+             gridExpand = TRUE, stack = FALSE,
+             cols = grep(paste0(c(internal$col.proj, internal$col.surdef),
+                                collapse = "|"), names(data$subobject)))
+    conditionalFormatting(
+      excel, "Pivot-Subobject", rows = style$rows, style = style$negative,
+      type = "expression", rule = "<0",
+      cols = grep(paste0(c(internal$col.proj, internal$col.surdef),
+                         collapse = "|"), names(data$subobject)))
+    addStyle(excel, "Pivot-Subobject", style$formula.num, cols = style$cols,
+             rows = style$rows, gridExpand = TRUE, stack = FALSE)
+    saveWorkbook(excel, data$file, overwrite = TRUE)
+    
+    # surdef
+    style$rows <- 2:nrow(data$program.surdef)
+    style$cols <- grep(paste0("Object ", 0:9, collapse = "|"),
+                       names(data$program.surdef))
+    
+    excel <- data$program.surdef %>%
+      export_excel(
+        "Pivot-Service SurDef", data$file, "existing",
+        col.width = c("auto", "auto", rep(15, ncol(.) - 2)), save = FALSE)
+    conditionalFormatting(
+      excel, "Pivot-Service SurDef", cols = style$cols, rows = style$rows,
+      style = style$negative, type = "expression", rule = "<0")
+    addStyle(
+      excel, "Pivot-Service SurDef", style$formula.num,
+      cols = style$cols, rows = style$rows, gridExpand = TRUE, stack = FALSE)
+    saveWorkbook(excel, data$file, overwrite = TRUE)
+
+  },
+  
+  error = function(cond) {
+    
+    warning("Pivot tabs could not be generated for ", agency_id, ". ", cond)
+    
+  }
+  )
+}

@@ -1,0 +1,56 @@
+---
+header-includes:
+  - \usepackage{helvet}
+  - \renewcommand\familydefault{\sfdefault} 
+  - \usepackage[T1]{fontenc}
+  - \usepackage{booktabs}
+  - \usepackage{longtable}
+  - \usepackage{array}
+  - \usepackage{fancyhdr}
+  - \usepackage{makecell}
+  - \usepackage{multirow}
+  - \usepackage{wrapfig}
+  - \usepackage{float}
+  - \usepackage{colortbl}
+  - \usepackage{tabu}
+  - \usepackage{threeparttable}
+  - \usepackage{threeparttablex}
+  - \usepackage[normalem]{ulem}
+  - \usepackage{makecell}
+  - \usepackage{lastpage}
+  - \usepackage{lipsum}
+  - \pagestyle{fancy}
+  - \fancyhead[C]{Fiscal 20`r params$fy` Operating Budget Surplus/Deficit Projection}
+  - \fancyhead[R]{Quarter `r params$qt`}
+  - \fancyfoot[C]{\footnotesize Page \thepage\, of\, \pageref*{LastPage}}
+  - \renewcommand{\headrulewidth}{0pt}
+
+output:
+  pdf_document:
+  latex_engine: xelatex
+classoption: landscape
+geometry: "left=.25in,right=.25in,top=.7in,bottom=.7in"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  message = FALSE,
+  warning = FALSE
+)
+
+options(knitr.table.format = "latex",
+        knitr.kable.NA = '')
+```
+
+```{r }
+kable(chiefs_report, booktabs = TRUE, longtable = TRUE, align = c('l', 'l', rep('r', 10))) %>%
+  row_spec(nrow(chiefs_report) - 1,  hline_after = TRUE) %>%
+  row_spec(nrow(chiefs_report), bold = TRUE) %>%
+  column_spec(2, "20em") %>%
+  column_spec(4:13, "5.1em") %>%
+  kable_styling(latex_options = c("repeat_header"), font_size = 8) %>%
+  collapse_rows(1:2, row_group_label_position = 'stack',
+              latex_hline = "none", headers_to_remove = 1:2)
+
+```
