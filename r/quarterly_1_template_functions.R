@@ -123,8 +123,9 @@ subset_agency_data <- function(agency_id, proj = "quarterly") {
       
       data <- list(
         line.item = expend %>% 
-          filter(grepl("casino|pimlico", `Activity Name`, ignore.case = TRUE)),
-        analyst = "Rachel Zinn",
+          filter(grepl("casino|pimlico", `Activity Name`, ignore.case = TRUE) &
+                   `Fund ID` != "1001"),
+        analyst = "Zhenya Ergova",
         agency = "Casino Funds")
       
       data$object <- data$line.item %>%
@@ -150,7 +151,7 @@ subset_agency_data <- function(agency_id, proj = "quarterly") {
       data <- list(
         line.item = expend %>% 
           filter(`Fund ID` %in% c("2075", "2076")),
-        analyst = "Rachel Zinn",
+        analyst = "Christopher Quintyne",
         agency = "Parking Funds")
       
       data$object <- data$line.item %>%
@@ -174,13 +175,14 @@ subset_agency_data <- function(agency_id, proj = "quarterly") {
     } else {
       
       data <- list(
-        line.item = expend %>%
-          filter(`Fund ID` == "1000"),
-        analyst = analysts,
-        agency = analysts,
-        object = object,
-        subobject = subobject,
-        program.surdef = program.surdef) %>%map(filter, `Agency ID` == agency_id) %>%
+          line.item = expend %>%
+            filter(`Fund ID` == "1001"),
+          analyst = analysts,
+          agency = analysts,
+          object = object,
+          subobject = subobject,
+          program.surdef = program.surdef) %>%
+        map(filter, `Agency ID` == agency_id) %>%
         map(ungroup)
       
       data$analyst %<>% extract2("Analyst")
@@ -232,10 +234,9 @@ export_projections_tab <- function(agency_id, list) {
       export_excel(
         "Projection", data$file, "new",
         col.width = rep(15, ncol(.)), save = FALSE)
-    # https://github.com/awalker89/openxlsx/issues/348
-    # dataValidation(
-    #   excel,  1, rows = style$rows, type = "list", value = "Calcs!$A$2:$A$10",
-    #   cols = grep(internal$col.calc, names(data$line.item)))
+    dataValidation(
+      excel,  1, rows = style$rows, type = "list", value = "Calcs!$A$2:$A$10",
+      cols = grep(internal$col.calc, names(data$line.item)))
     conditionalFormatting(
       excel, 1, rows = style$rows, style = style$negative,
       type = "expression", rule = "<0",

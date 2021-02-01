@@ -7,10 +7,9 @@
 
 params <- list(
   fy = 21,
-  qt = 1,
+  qt = 2,
   # NA if there is no edited compiled file
-  compiled_edit = "G:/Fiscal Years/Fiscal 2021/Projections Year/4. Quarterly Projections/1st Quarter/1. Projection Memos/FY21 Q1 Projection.xlsx",
-)
+  compiled_edit = NA)
 
 ################################################################################
 
@@ -24,12 +23,11 @@ internal <- setup_internal(proj = "quarterly")
 
 if (is.na(params$compiled_edit)) {
   
-  # Q2 FY20 projections won't include surplus/deficit but we should include that from now on
-  # add centrally this one time
-  data <- list.files(internal$analyst_files, pattern = "^[^~].*.xlsx",
+  data <- list.files(internal$analyst_files, pattern = paste0("^[^~].*Q", params$qt ,".*xlsx"),
                      full.names = TRUE, recursive = TRUE) %>%
     import_analyst_files()
   
+
   # if cols are not matching, see which files are missing the col
   # missing.cols <- map(data, function (x) { TRUE %in% grepl("Q1 Calculation", names(x)) }) %>%
   #   unlist()
@@ -83,7 +81,7 @@ unique(analysts$`Agency Name`)[!unique(analysts$`Agency Name`) %in% compiled$`Ag
 
 totals <-
   compiled %>%
-  group_by(`Agency Name`) %>%
+  group_by(`Agency Name`, `Service ID`, `Service Name`, `Activity ID`, `Subobject ID`, `Subobject Name`) %>%
   summarize(`Compiled Total Budget` = sum(`Total Budget`, na.rm = TRUE)) %>%
   left_join(
     import(internal$file, which = "CurrentYearExpendituresActLevel") %>%
@@ -91,10 +89,15 @@ totals <-
       mutate_at(vars(ends_with("ID")), as.character) %>%
       combine_agencies() %>%
       filter(`Fund ID` == "1001") %>%
-      group_by(`Agency Name`) %>%
-      summarize(`Total Budget` = sum(`Total Budget`, na.rm = TRUE)), by = "Agency Name") %>%
-  mutate(Match = `Total Budget` == `Compiled Total Budget`) %>%
-  arrange(Match)
+      group_by(`Agency Name`, `Service ID`, `Service Name`, `Activity ID`, `Subobject ID`, `Subobject Name`) %>%
+      summarize(`Total Budget` = sum(`Total Budget`, na.rm = TRUE)), 
+    by = c("Agency Name", "Service ID", "Service Name", "Activity ID", "Subobject ID", "Subobject Name")) %>%
+  mutate(Difference = `Compiled Total Budget` - `Total Budget`) %>%
+  filter(`Total Budget` != `Compiled Total Budget`)
+
+if (nrow(totals) > 0) {
+  export_excel(totals, "Mismatched Totals", internal$output, "existing") 
+}
 
 # Export ####
 

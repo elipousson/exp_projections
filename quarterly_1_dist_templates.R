@@ -1,6 +1,6 @@
 # Distribute projection file templates
 
-params <- list(qt = 1, # either the current qt (if quarterly) or most recent qt (if monthly)
+params <- list(qt = 2, # either the current qt (if quarterly) or most recent qt (if monthly)
                fy = 21) 
 
 ################################################################################
@@ -12,6 +12,7 @@ internal <- setup_internal(proj = "quarterly")
 
 calcs <- retrieve_analyst_calcs() %>%
   select(ends_with("ID"), 
+         !!paste0("Q", internal$last_qt, " Projection"),
          !!paste0("Q", internal$last_qt, " Calculation"),
          !!paste0("Q", internal$last_qt, " Manual Formula"),
          Notes) %>%
