@@ -38,13 +38,34 @@ rename_factor_object <- function(df) {
         "Debt Service", "Debt Service", "Capital Improv."))) 
 }
 
+export_analyst_calcs <- function(df) {
+  
+  # create a historical file that will be referenced next quarter to create a template
+  
+  check <- compiled %>%
+    group_by(`Service ID`, `Activity ID`, `Fund ID`, `Subobject ID`) %>%
+    count() %>%
+    filter(n > 1)
+  
+  if (nrow(calc_check) > 0) {
+    warning("There are", nrow(calc_check), "duplicated line item calculations")
+  }
+  
+  
+  # keep all Name columns just for easy troubleshooting; they aren't needed to create the templates
+  
+  df %>%
+    select(-File) %>%
+    # keep all funds in this file to bring analyst calcs for every line item forward...
+    export(paste0("quarterly_outputs/FY", params$fy, " Q", params$qt, " Analyst Calcs.csv"))
+}
+
 format_chiefs_report <- function(df) {
   # set up df for special Excel formatting in Chief's report
   
-  df <- compiled  %>%
+  df <- df  %>%
     mutate(Agency = paste(`Agency ID`, `Agency Name`),
            Service = str_trunc(paste(`Service ID`, `Service Name`), 40, "right", ""))
-  
   
   chiefs_report <- df %>%
     # keeping `Agency Name` and `Service ID` only for ordering / joining purposes
@@ -127,6 +148,7 @@ run_summary_reports <- function(df) {
 }
 
 run_chiefs_report <- function(df) {
+  
   chiefs_report <- format_chiefs_report(df) %>%
     calc_chiefs_report_totals()
   
