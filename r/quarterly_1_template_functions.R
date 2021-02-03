@@ -46,6 +46,18 @@ make_pivots <- function(df, type, proj = "quarterly") {
   
   # Excel SUMIFS to approximate pivot tables
   
+  totals <- df %>%
+    distinct(`Agency ID`, `Agency Name`) %>%
+    mutate(
+      `Fund ID` = "Total",
+      !!sym(paste0("FY", params$fy, " Adopted")) := 
+        paste0("SUBTOTAL(109,", type, "[FY", params$fy," Adopted])"),
+      `Total Budget` = paste0("SUBTOTAL(109,", type, "[Total Budget])"),
+      `YTD Exp` = paste0("SUBTOTAL(109,", type, "[YTD Exp])"),
+      !!internal$col.proj := paste0("SUBTOTAL(109,", type, "[", internal$col.proj, "])"),
+      !!internal$col.surdef := paste0("SUBTOTAL(109,", type, "[", internal$col.surdef, "])"),
+      `Projection Diff` = paste0("SUBTOTAL(109,", type, "[Projection Diff])"))
+  
   df %<>%
     mutate(
       !!sym(paste0("FY", params$fy, " Adopted")) :=
@@ -56,39 +68,41 @@ make_pivots <- function(df, type, proj = "quarterly") {
                " ID],[", type, " ID],Table3[Fund ID],[Fund ID])"),
       `YTD Exp` = 
         paste0("SUMIFS(Table3[YTD Exp],Table3[", type, " ID],[", type,
-               " ID],Table3[Fund ID],[Fund ID])"))
+               " ID],Table3[Fund ID],[Fund ID])"),
+      !!internal$col.proj := paste0(
+        "SUMIFS(Table3[", !!internal$col.proj,
+        "],Table3[", type, " ID],[", type, " ID],Table3[Fund ID],[Fund ID])"),
+      !!internal$col.surdef := paste0(
+        "SUMIFS(Table3[", !!internal$col.surdef,
+        "],Table3[", type, " ID],[", type, " ID],Table3[Fund ID],[Fund ID])"))
   
   if (proj == "monthly") {
     df %<>%
       mutate(
         !!paste0("Q", params$qt, " Projection") := 
-          paste0("SUMIFS(Table3[Q", params$qt," Projection],Table3[", type, " ID],[", 
-                 type, " ID],Table3[Fund ID],[Fund ID])"))
+          paste0("SUMIFS(Table3[Q", params$qt," Projection],Table3[", type,
+                 " ID],[", type, " ID],Table3[Fund ID],[Fund ID])"))
+    
+    totals <- totals %>%
+      mutate(
+        !!paste0("Q", params$qt, " Projection") := paste0(
+          "SUBTOTAL(109,", type, "[Q", params$qt, " Projection])"))
+    
   } else {
-    if (params$qt == 2 ) {
+    if (params$qt %in% c(2, 3) ) {
       df %<>% 
         mutate(
-          `Q1 Projection` = 
-            paste0("SUMIFS(Table3[Q1 Projection],Table3[", type, " ID],[",
-                   type, " ID],Table3[Fund ID],[Fund ID])"))
+          !!sym(paste0("Q", params$qt - 1, " Projection")) := 
+            paste0("SUMIFS(Table3[Q", params$qt - 1, " Projection],Table3[", type, 
+                   " ID],[", type, " ID],Table3[Fund ID],[Fund ID])"))
+      
+      totals <- totals %>%
+        mutate(!!sym(paste0("Q", params$qt - 1, " Projection")) := 
+                 paste0("SUBTOTAL(109,", type, "[Q", params$qt - 1, " Projection])"))
     }
-    
-    if (params$qt == 3 ) {
-      df %<>%
-        mutate(
-          `Q2 Projection` =
-            paste0("SUMIFS(Table3[Q2 Projection],Table3[", type, " ID],[", 
-                   type, " ID],Table3[Fund ID],[Fund ID])"))
-    }
+  
   }
-
-  df %<>%
-    mutate(!!internal$col.proj := paste0(
-      "SUMIFS(Table3[", !!internal$col.proj,
-      "],Table3[", type, " ID],[", type, " ID],Table3[Fund ID],[Fund ID])"),
-      !!internal$col.surdef := paste0(
-        "SUMIFS(Table3[", !!internal$col.surdef,
-        "],Table3[", type, " ID],[", type, " ID],Table3[Fund ID],[Fund ID])"))
+  
   if (proj == "monthly") {
     df %<>%
       mutate(`Projection Diff` = 
@@ -102,6 +116,9 @@ make_pivots <- function(df, type, proj = "quarterly") {
                         paste0("Q", params$qt - 1, " Projection]")))  
     }
   }
+  
+  df <- df %>%
+    bind_rows(totals)
   
   return(df)
   
@@ -131,12 +148,16 @@ subset_agency_data <- function(agency_id, proj = "quarterly") {
         agency = "Casino Funds")
       
       data$object <- data$line.item %>%
-        distinct( `Fund ID`, `Fund Name`, `Object ID`, `Object Name`) %>%
+        mutate(`Agency ID` = "CAS",
+               `Agency Name` = "Casino Funds") %>%
+        distinct(`Agency ID`, `Agency Name`, `Fund ID`, `Fund Name`, `Object ID`, `Object Name`) %>%
         arrange(`Fund ID`) %>%
         make_pivots("Object", proj)
       
       data$subobject <- data$line.item %>%
-        distinct( `Fund ID`, `Fund Name`, `Subobject ID`, `Subobject Name`) %>%
+        mutate(`Agency ID` = "CAS",
+               `Agency Name` = "Casino Funds") %>%
+        distinct(`Agency ID`, `Agency Name`, `Fund ID`, `Fund Name`, `Subobject ID`, `Subobject Name`) %>%
         arrange(`Fund ID`) %>%
         make_pivots("Subobject", proj)
       
@@ -147,6 +168,9 @@ subset_agency_data <- function(agency_id, proj = "quarterly") {
       data$program.surdef %<>%
         bind_cols(obj.bind[1:nrow(data$program.surdef),]) %>%
         mutate_if(is.factor, as.character)
+      
+      data[c("object", "subobject", "program.surdef")] %<>%
+        map(select, -starts_with("Agency"))
       
     } else if (agency_id == "parking") {
     
@@ -157,12 +181,16 @@ subset_agency_data <- function(agency_id, proj = "quarterly") {
         agency = "Parking Funds")
       
       data$object <- data$line.item %>%
-        distinct( `Fund ID`, `Fund Name`, `Object ID`, `Object Name`) %>%
+        mutate(`Agency ID` = "PAR",
+               `Agency Name` = "Parking Funds") %>%
+        distinct(`Agency ID`, `Agency Name`, `Fund ID`, `Fund Name`, `Object ID`, `Object Name`) %>%
         arrange(`Fund ID`) %>%
         make_pivots("Object", proj)
       
       data$subobject <- data$line.item %>%
-        distinct( `Fund ID`, `Fund Name`, `Subobject ID`, `Subobject Name`) %>%
+        mutate(`Agency ID` = "PAR",
+               `Agency Name` = "Parking Funds") %>%
+        distinct(`Agency ID`, `Agency Name`, `Fund ID`, `Fund Name`, `Subobject ID`, `Subobject Name`) %>%
         arrange(`Fund ID`) %>%
         make_pivots("Subobject", proj)
       
@@ -173,6 +201,9 @@ subset_agency_data <- function(agency_id, proj = "quarterly") {
       data$program.surdef %<>%
         bind_cols(obj.bind[1:nrow(data$program.surdef),]) %>%
         mutate_if(is.factor, as.character)
+      
+      data[c("object", "subobject", "program.surdef")] %<>%
+        map(select, -starts_with("Agency"))
       
     } else {
       
@@ -187,7 +218,7 @@ subset_agency_data <- function(agency_id, proj = "quarterly") {
         map(ungroup)
       
       data[c("line.item", "object", "subobject", "program.surdef")] %<>%
-        map(filter, `Fund ID` == "1001")
+        map(filter, `Fund ID` %in% c("1001", "Total"))
       
       data$analyst %<>% extract2("Analyst")
       data$agency %<>% extract2("Agency Name - Cleaned")
@@ -237,7 +268,7 @@ export_projections_tab <- function(agency_id, list) {
     excel <- data$line.item %>%
       export_excel(
         "Projection", data$file, "new",
-        col.width = rep(15, ncol(.)), save = FALSE)
+        col_width = rep(15, ncol(.)), save = FALSE)
     dataValidation(
       excel,  1, rows = style$rows, type = "list", value = "Calcs!$A$2:$A$10",
       cols = grep(internal$col.calc, names(data$line.item)))
@@ -257,7 +288,7 @@ export_projections_tab <- function(agency_id, list) {
     saveWorkbook(excel, data$file, overwrite = TRUE)
     
     # needed for validation of Qx Calculation column
-    export_excel(calc.list, "Calcs", data$file, "existing", visible = FALSE)
+    export_excel(calc.list, "Calcs", data$file, "existing", show_tab = FALSE)
     
   },
   
@@ -329,8 +360,8 @@ export_pivot_tabs <- function(agency_id, list) {
     
     excel <- data$object %>%
       export_excel(
-        "Pivot-Object", data$file, "existing",
-        col.width = c("auto", "auto", ncol(.) - 2), save = FALSE)
+        "Pivot-Object", data$file, "existing", table_name = "Object",
+        col_width = c("auto", "auto", ncol(.) - 2), save = FALSE)
     addStyle(
       excel, "Pivot-Object", style$cell.bg, rows = 1,
       gridExpand = TRUE, stack = FALSE,
@@ -349,8 +380,8 @@ export_pivot_tabs <- function(agency_id, list) {
     style$rows <- 2:nrow(data$subobject)
     excel <- data$subobject %>%
       export_excel(
-        "Pivot-Subobject", data$file, "existing",
-        col.width = c(rep("auto", 4), rep(15, ncol(.) - 4)), save = FALSE)
+        "Pivot-Subobject", data$file, "existing", table_name = "Subobject",
+        col_width = c(rep("auto", 4), rep(15, ncol(.) - 4)), save = FALSE)
     addStyle(excel, "Pivot-Subobject", style$cell.bg, rows = 1,
              gridExpand = TRUE, stack = FALSE,
              cols = grep(paste0(c(internal$col.proj, internal$col.surdef),
@@ -372,7 +403,7 @@ export_pivot_tabs <- function(agency_id, list) {
     excel <- data$program.surdef %>%
       export_excel(
         "Pivot-Service SurDef", data$file, "existing",
-        col.width = c("auto", "auto", rep(15, ncol(.) - 2)), save = FALSE)
+        col_width = c("auto", "auto", rep(15, ncol(.) - 2)), save = FALSE)
     conditionalFormatting(
       excel, "Pivot-Service SurDef", cols = style$cols, rows = style$rows,
       style = style$negative, type = "expression", rule = "<0")
