@@ -83,10 +83,12 @@ make_pivots <- function(df, type, proj = "quarterly") {
   }
 
   df %<>%
-    mutate(!!internal$col.proj := paste0("SUMIFS(Table3[", !!internal$col.proj,
-                                         "],Table3[", type, " ID],[", type, " ID],Table3[Fund ID],[Fund ID])"),
-           !!internal$col.surdef := paste0("SUMIFS(Table3[", !!internal$col.surdef,
-                                           "],Table3[", type, " ID],[", type, " ID],Table3[Fund ID],[Fund ID])"))
+    mutate(!!internal$col.proj := paste0(
+      "SUMIFS(Table3[", !!internal$col.proj,
+      "],Table3[", type, " ID],[", type, " ID],Table3[Fund ID],[Fund ID])"),
+      !!internal$col.surdef := paste0(
+        "SUMIFS(Table3[", !!internal$col.surdef,
+        "],Table3[", type, " ID],[", type, " ID],Table3[Fund ID],[Fund ID])"))
   if (proj == "monthly") {
     df %<>%
       mutate(`Projection Diff` = 
@@ -175,8 +177,7 @@ subset_agency_data <- function(agency_id, proj = "quarterly") {
     } else {
       
       data <- list(
-          line.item = expend %>%
-            filter(`Fund ID` == "1001"),
+          line.item = expend,
           analyst = analysts,
           agency = analysts,
           object = object,
@@ -184,6 +185,9 @@ subset_agency_data <- function(agency_id, proj = "quarterly") {
           program.surdef = program.surdef) %>%
         map(filter, `Agency ID` == agency_id) %>%
         map(ungroup)
+      
+      data[c("line.item", "object", "subobject", "program.surdef")] %<>%
+        map(filter, `Fund ID` == "1001")
       
       data$analyst %<>% extract2("Analyst")
       data$agency %<>% extract2("Agency Name - Cleaned")
