@@ -88,19 +88,8 @@ subobject <- expend %>%
 
 program.surdef <- expend %>%
   distinct(`Agency ID`, `Agency Name`, `Fund ID`, `Fund Name`, `Service ID`, `Service Name`) %>%
-  arrange(`Fund ID`)
-  
-obj.bind <- data.frame(
-  Object = paste("Object", 0:9),
-  Formula = paste0(
-    "SUMIFS(projection[", internal$col.surdef,
-    "], projection[Fund ID],[Fund ID], projection[Service ID],[Service ID],projection[Object ID],", 0:9, ")")) %>%
-  spread(Object, Formula) %>%
-  slice(rep(1:n(), each = nrow(program.surdef)))
-
-program.surdef %<>%
-  bind_cols(obj.bind) %>%
-  mutate_if(is.factor, as.character)
+  arrange(`Fund ID`) %>%
+  make_pivots("SurDef")
 
 calc.list <- expend %>%
   distinct(!!sym(internal$col.calc)) %>%
@@ -121,5 +110,5 @@ agency_data <- map(x, subset_agency_data) %>%
   map(x, apply_excel_formulas, .) %>%
   set_names(x)
 
-map(x, export_projections_tab, agency_data)
-map(x, export_pivot_tabs, agency_data)
+map(x[1], export_projections_tab, agency_data)
+map(x[1], export_pivot_tabs, agency_data)
