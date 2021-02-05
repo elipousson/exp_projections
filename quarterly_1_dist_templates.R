@@ -83,8 +83,8 @@ subobject <- expend %>%
 #   summarise(`FY19 Adopted` = sum(`FY19 Adopted`, na.rm = TRUE),
 #             `Total Budget` = sum(`YTD Exp`, na.rm = TRUE),
 #             `YTD Exp` = sum(`YTD Exp`, na.rm = TRUE)) %>%
-#   mutate(!!internal$col.proj := "SUMIFS(Table3[Q2 Projection], Table3[Service ID],Table7[[Service ID]],Table3[Object ID],Table7[[Object ID]])",
-#          !!internal$col.surdef := "SUMIFS(Table3[Q2 Surplus/Deficit], Table3[Service ID],Table7[[Service ID]],Table3[Object ID],Table7[[Object ID]])")
+#   mutate(!!internal$col.proj := "SUMIFS(projection[Q2 Projection], projection[Service ID],Table7[[Service ID]],projection[Object ID],Table7[[Object ID]])",
+#          !!internal$col.surdef := "SUMIFS(projection[Q2 Surplus/Deficit], projection[Service ID],Table7[[Service ID]],projection[Object ID],Table7[[Object ID]])")
 
 program.surdef <- expend %>%
   distinct(`Agency ID`, `Agency Name`, `Fund ID`, `Fund Name`, `Service ID`, `Service Name`) %>%
@@ -93,8 +93,8 @@ program.surdef <- expend %>%
 obj.bind <- data.frame(
   Object = paste("Object", 0:9),
   Formula = paste0(
-    "SUMIFS(Table3[", internal$col.surdef,
-    "], Table3[Fund ID],[Fund ID], Table3[Service ID],[Service ID],Table3[Object ID],", 0:9, ")")) %>%
+    "SUMIFS(projection[", internal$col.surdef,
+    "], projection[Fund ID],[Fund ID], projection[Service ID],[Service ID],projection[Object ID],", 0:9, ")")) %>%
   spread(Object, Formula) %>%
   slice(rep(1:n(), each = nrow(program.surdef)))
 

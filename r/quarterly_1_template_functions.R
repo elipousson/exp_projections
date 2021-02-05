@@ -20,7 +20,7 @@ make_proj_formulas <- function(df, manual = "zero") {
   # manual should be "zero" if manual OSOs should default to 0, or "last" if they
   # should be the same as last qt
   
-  df %<>%
+  df <- df %>%
     mutate(
       Projection =
         paste0(
@@ -45,75 +45,84 @@ make_proj_formulas <- function(df, manual = "zero") {
 make_pivots <- function(df, type, proj = "quarterly") {
   
   # Excel SUMIFS to approximate pivot tables
-  
+
   totals <- df %>%
     distinct(`Agency ID`, `Agency Name`) %>%
     mutate(
       `Fund ID` = "Total",
       !!sym(paste0("FY", params$fy, " Adopted")) := 
-        paste0("SUBTOTAL(109,", type, "[FY", params$fy," Adopted])"),
-      `Total Budget` = paste0("SUBTOTAL(109,", type, "[Total Budget])"),
-      `YTD Exp` = paste0("SUBTOTAL(109,", type, "[YTD Exp])"),
-      !!internal$col.proj := paste0("SUBTOTAL(109,", type, "[", internal$col.proj, "])"),
-      !!internal$col.surdef := paste0("SUBTOTAL(109,", type, "[", internal$col.surdef, "])"),
-      `Projection Diff` = paste0("SUBTOTAL(109,", type, "[Projection Diff])"))
+        paste0("SUM(projection[FY", params$fy, " Adopted])"),
+      `Total Budget` = "SUM(projection[Total Budget])",
+      `YTD Exp` = "SUM(projection[YTD Exp])",
+      !!internal$col.proj := paste0("SUM(projection[", internal$col.proj, "])"),
+      !!internal$col.surdef := paste0("SUM(projection[", internal$col.surdef, "])"))
   
-  df %<>%
+  df <- df %>%
     mutate(
       !!sym(paste0("FY", params$fy, " Adopted")) :=
-        paste0("SUMIFS(Table3[FY", params$fy, " Adopted],Table3[", type, " ID],[",
-               type, " ID],Table3[Fund ID],[Fund ID])"),
+        paste0("SUMIFS(projection[FY", params$fy, " Adopted],projection[", type, " ID],[",
+               type, " ID],projection[Fund ID],[Fund ID])"),
       `Total Budget` =
-        paste0("SUMIFS(Table3[Total Budget],Table3[", type,
-               " ID],[", type, " ID],Table3[Fund ID],[Fund ID])"),
+        paste0("SUMIFS(projection[Total Budget],projection[", type,
+               " ID],[", type, " ID],projection[Fund ID],[Fund ID])"),
       `YTD Exp` = 
-        paste0("SUMIFS(Table3[YTD Exp],Table3[", type, " ID],[", type,
-               " ID],Table3[Fund ID],[Fund ID])"),
+        paste0("SUMIFS(projection[YTD Exp],projection[", type, " ID],[", type,
+               " ID],projection[Fund ID],[Fund ID])"),
       !!internal$col.proj := paste0(
-        "SUMIFS(Table3[", !!internal$col.proj,
-        "],Table3[", type, " ID],[", type, " ID],Table3[Fund ID],[Fund ID])"),
+        "SUMIFS(projection[", !!internal$col.proj,
+        "],projection[", type, " ID],[", type, " ID],projection[Fund ID],[Fund ID])"),
       !!internal$col.surdef := paste0(
-        "SUMIFS(Table3[", !!internal$col.surdef,
-        "],Table3[", type, " ID],[", type, " ID],Table3[Fund ID],[Fund ID])"))
+        "SUMIFS(projection[", !!internal$col.surdef,
+        "],projection[", type, " ID],[", type, " ID],projection[Fund ID],[Fund ID])"))
   
   if (proj == "monthly") {
-    df %<>%
+    df <- df %>%
       mutate(
         !!paste0("Q", params$qt, " Projection") := 
-          paste0("SUMIFS(Table3[Q", params$qt," Projection],Table3[", type,
-                 " ID],[", type, " ID],Table3[Fund ID],[Fund ID])"))
+          paste0("SUMIFS(projection[Q", params$qt," Projection],projection[", type,
+                 " ID],[", type, " ID],projection[Fund ID],[Fund ID])"))
     
     totals <- totals %>%
       mutate(
-        !!paste0("Q", params$qt, " Projection") := paste0(
-          "SUBTOTAL(109,", type, "[Q", params$qt, " Projection])"))
+        !!paste0("Q", params$qt, " Projection") := 
+          paste0("SUM(projection[Q", params$qt, " Projection])"))
     
   } else {
     if (params$qt %in% c(2, 3) ) {
-      df %<>% 
+      df <- df %>% 
         mutate(
           !!sym(paste0("Q", params$qt - 1, " Projection")) := 
-            paste0("SUMIFS(Table3[Q", params$qt - 1, " Projection],Table3[", type, 
-                   " ID],[", type, " ID],Table3[Fund ID],[Fund ID])"))
+            paste0("SUMIFS(projection[Q", params$qt - 1, " Projection],projection[", type, 
+                   " ID],[", type, " ID],projection[Fund ID],[Fund ID])"))
       
       totals <- totals %>%
         mutate(!!sym(paste0("Q", params$qt - 1, " Projection")) := 
-                 paste0("SUBTOTAL(109,", type, "[Q", params$qt - 1, " Projection])"))
+                 paste0("SUM(projection[Q", params$qt - 1, " Projection])"))
     }
   
   }
   
   if (proj == "monthly") {
-    df %<>%
+    df <- df %>%
       mutate(`Projection Diff` = 
                paste0("[", internal$col.proj, "]-[",
                       paste0("Q", params$qt, " Projection]")))
+    totals <- totals %>%
+      mutate(`Projection Diff` = 
+               paste0("[", internal$col.proj, "]-[",
+                      paste0("Q", params$qt, " Projection]")))
+    
   } else {
     if (params$qt != 1) {
-      df %<>%
+      df <- df %>%
         mutate(`Projection Diff` = 
                  paste0("[", internal$col.proj, "]-[",
-                        paste0("Q", params$qt - 1, " Projection]")))  
+                        paste0("Q", params$qt - 1, " Projection]"))) 
+      
+      totals <- totals %>%
+        mutate(`Projection Diff` = 
+                 paste0("[", internal$col.proj, "]-[",
+                        paste0("Q", params$qt - 1, " Projection]"))) 
     }
   }
   
@@ -267,7 +276,7 @@ export_projections_tab <- function(agency_id, list) {
     # custom formatting for projections tab
     excel <- data$line.item %>%
       export_excel(
-        "Projection", data$file, "new",
+        "Projection", data$file, "new", table_name = "projection",
         col_width = rep(15, ncol(.)), save = FALSE)
     dataValidation(
       excel,  1, rows = style$rows, type = "list", value = "Calcs!$A$2:$A$10",
