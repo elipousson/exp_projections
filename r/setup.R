@@ -4,6 +4,7 @@ library(lubridate)
 library(rio)
 library(openxlsx)
 library(bbmR)
+library(expProjections)
 
 # set number formatting for openxlsx
 options("openxlsx.numFmt" = "#,##0")

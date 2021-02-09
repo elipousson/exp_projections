@@ -5,12 +5,11 @@ params <- list(qt = 2, # either the current qt (if quarterly) or most recent qt 
 
 ################################################################################
 
-source("r/quarterly_1_template_functions.R")
 source("r/setup.R")
 
 internal <- setup_internal(proj = "quarterly")
 
-calcs <- retrieve_analyst_calcs() %>%
+calcs <- import_analyst_calcs() %>%
   select(ends_with("ID"), 
          # needs to be updated for start of FY
          !!paste0("Q", internal$last_qt, " Projection"),
@@ -57,14 +56,6 @@ subobject <- expend %>%
   arrange(`Fund ID`) %>%
   make_pivots("Subobject")
 
-# program <- expend %>%
-#   group_by(`Agency ID`, `Agency Name`, `Service ID`, `Program Name`, `Object ID`, `Object Name`) %>%
-#   summarise(`FY19 Adopted` = sum(`FY19 Adopted`, na.rm = TRUE),
-#             `Total Budget` = sum(`YTD Exp`, na.rm = TRUE),
-#             `YTD Exp` = sum(`YTD Exp`, na.rm = TRUE)) %>%
-#   mutate(!!internal$col.proj := "SUMIFS(projection[Q2 Projection], projection[Service ID],Table7[[Service ID]],projection[Object ID],Table7[[Object ID]])",
-#          !!internal$col.surdef := "SUMIFS(projection[Q2 Surplus/Deficit], projection[Service ID],Table7[[Service ID]],projection[Object ID],Table7[[Object ID]])")
-
 program.surdef <- expend %>%
   distinct(`Agency ID`, `Agency Name`, `Fund ID`, `Fund Name`, `Service ID`, `Service Name`) %>%
   arrange(`Fund ID`) %>%
@@ -82,7 +73,7 @@ x <- analysts %>%
   # casino funds, parking funds, and Parking Authority need separate projections
   c(., 4311, 4376, "casino", "parking")
 
-create_analyst_dirs("quarterly_dist/")
+create_analyst_dirs("quarterly_dist/", "Zhenya Ergova")
 
 agency_data <- map(x, subset_agency_data) %>%
   set_names(x) %>%

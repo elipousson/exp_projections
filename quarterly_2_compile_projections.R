@@ -17,7 +17,6 @@ library(knitr)
 library(kableExtra)
 
 source("r/setup.R")
-source("r/quarterly_2_compilation_functions.R")
 
 internal <- setup_internal(proj = "quarterly")
 
