@@ -1,20 +1,25 @@
 # Distribute projection file templates
 
-params <- list(qt = 1, # either the current qt (if quarterly) or most recent qt (if monthly)
+params <- list(qt = 2, # either the current qt (if quarterly) or most recent qt (if monthly)
                fy = 21) 
 
 ################################################################################
 
-source("r/quarterly_1_template_functions.R")
 source("r/setup.R")
 
 internal <- setup_internal(proj = "quarterly")
 
-calcs <- retrieve_analyst_calcs() %>%
+calcs <- import_analyst_calcs() %>%
   select(ends_with("ID"), 
-         !!paste0("Q", internal$last_qt, " Calculation"),
-         !!paste0("Q", internal$last_qt, " Manual Formula"),
+         # needs to be updated for start of FY
+         !!paste0("Q", internal$last_qt, " Projection"),
+         Calculation = !!paste0("Q", internal$last_qt, " Calculation"),
+         !!paste0("Q", params$qt, " Manual Formula") := 
+           !!paste0("Q", internal$last_qt, " Manual Formula"),
          Notes) %>%
+  mutate(
+    Calculation := ifelse(Calculation == "ytd", "YTD",
+             tools::toTitleCase(Calculation))) %>%
   distinct()
 
 expend <- import(internal$file, which = "CurrentYearExpendituresActLevel") %>%
@@ -30,33 +35,7 @@ expend <- import(internal$file, which = "CurrentYearExpendituresActLevel") %>%
                    "Fund ID", "Object ID", "Subobject ID")) %>%
   # set ID cols as char so that they aren't formatted as accting
   mutate_at(vars(ends_with("ID")), as.character) %>%
-  # needs to be updated for start of FY
-  rename(Calculation := !!paste0("Q", internal$last_qt, " Calculation"),
-         !!paste0("Q", params$qt, " Manual Formula") :=
-           !!paste0("Q", internal$last_qt, " Manual Formula")) %>%
-  mutate(
-    Calculation = case_when(
-      is.na(Calculation) & 
-        (`Subobject ID` %in% c(110, 177, 196)) ~ "No Funds Expended",
-      is.na(Calculation) &
-        `Subobject ID` %in% c(202, 203, 331, 396, 512, 513, 740) ~ "At Budget",
-      # this overwrites these subobjects with manual calculations, even if there 
-      # was already a calculation there
-        `Subobject ID` %in% c(0, 318, 326, 350, 351, 503, 508) ~ "Manual",
-      is.na(Calculation) ~ "Straight",
-      TRUE ~ Calculation),
-    Calculation = ifelse(Calculation == "ytd", "YTD",  tools::toTitleCase(Calculation)))
-
-# sick leave conversion
-if (params$qt == 1) {
-  expend <- expend %>%
-    mutate(Calculation = ifelse(`Subobject ID` == "115", "At budget", Calculation))
-} else {
-  expend <- expend %>%
-    mutate(Calculation = ifelse(`Subobject ID` == "115", "YTD", Calculation))
-}
-
-expend <- expend %>%
+  apply_standard_calcs(.) %>%
   make_proj_formulas(.) %>%
   rename(!!internal$col.calc := Calculation,
          !!internal$col.proj := Projection,
@@ -77,29 +56,10 @@ subobject <- expend %>%
   arrange(`Fund ID`) %>%
   make_pivots("Subobject")
 
-# program <- expend %>%
-#   group_by(`Agency ID`, `Agency Name`, `Service ID`, `Program Name`, `Object ID`, `Object Name`) %>%
-#   summarise(`FY19 Adopted` = sum(`FY19 Adopted`, na.rm = TRUE),
-#             `Total Budget` = sum(`YTD Exp`, na.rm = TRUE),
-#             `YTD Exp` = sum(`YTD Exp`, na.rm = TRUE)) %>%
-#   mutate(!!internal$col.proj := "SUMIFS(Table3[Q2 Projection], Table3[Service ID],Table7[[Service ID]],Table3[Object ID],Table7[[Object ID]])",
-#          !!internal$col.surdef := "SUMIFS(Table3[Q2 Surplus/Deficit], Table3[Service ID],Table7[[Service ID]],Table3[Object ID],Table7[[Object ID]])")
-
 program.surdef <- expend %>%
   distinct(`Agency ID`, `Agency Name`, `Fund ID`, `Fund Name`, `Service ID`, `Service Name`) %>%
-  arrange(`Fund ID`)
-  
-obj.bind <- data.frame(
-  Object = paste("Object", 0:9),
-  Formula = paste0(
-    "SUMIFS(Table3[", internal$col.surdef,
-    "], Table3[Fund ID],[Fund ID], Table3[Service ID],[Service ID],Table3[Object ID],", 0:9, ")")) %>%
-  spread(Object, Formula) %>%
-  slice(rep(1:n(), each = nrow(program.surdef)))
-
-program.surdef %<>%
-  bind_cols(obj.bind) %>%
-  mutate_if(is.factor, as.character)
+  arrange(`Fund ID`) %>%
+  make_pivots("SurDef")
 
 calc.list <- expend %>%
   distinct(!!sym(internal$col.calc)) %>%
@@ -113,7 +73,7 @@ x <- analysts %>%
   # casino funds, parking funds, and Parking Authority need separate projections
   c(., 4311, 4376, "casino", "parking")
 
-create_analyst_dirs("quarterly_dist/")
+create_analyst_dirs("quarterly_dist/", "Zhenya Ergova")
 
 agency_data <- map(x, subset_agency_data) %>%
   set_names(x) %>%
