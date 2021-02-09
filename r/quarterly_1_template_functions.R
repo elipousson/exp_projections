@@ -14,6 +14,25 @@ retrieve_analyst_calcs <- function() {
   
 }
 
+apply_standard_calcs <- function(df) {
+  df <- df %>%
+    mutate(
+      Calculation = case_when(
+        is.na(Calculation) & 
+          (`Subobject ID` %in% c(110, 177, 196)) ~ "No Funds Expended",
+        is.na(Calculation) &
+          `Subobject ID` %in% c(202, 203, 331, 396, 512, 513, 740) ~ "At Budget",
+        # this overwrites these subobjects with manual calculations, even if there 
+        # was already a calculation there
+        `Subobject ID` %in% c(0, 318, 326, 350, 351, 503, 508) ~ "Manual",
+        is.na(Calculation) ~ "Straight",
+        # sick leave conversion
+        `Subobject ID` == "115" & params$qt == 1 ~ "At budget",
+        `Subobject ID` == "115" & params$qt > 1 ~ "YTD",
+        TRUE ~ Calculation))
+}
+
+
 # Projection and Surplus/Deficit formulas ####
 make_proj_formulas <- function(df, manual = "zero") {
   
@@ -441,7 +460,7 @@ export_pivot_tabs <- function(agency_id, list) {
       cols = style$cols, rows = style$rows, gridExpand = TRUE, stack = TRUE)
     addStyle(
       excel, "Pivot-Service SurDef", style$total,
-      cols = style$cols, rows = max(style$rows), gridExpand = TRUE, stack = TRUE)
+      cols = 1:max(style$cols), rows = max(style$rows), gridExpand = TRUE, stack = TRUE)
     saveWorkbook(excel, data$file, overwrite = TRUE)
 
   },

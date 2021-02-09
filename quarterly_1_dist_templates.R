@@ -12,10 +12,15 @@ internal <- setup_internal(proj = "quarterly")
 
 calcs <- retrieve_analyst_calcs() %>%
   select(ends_with("ID"), 
+         # needs to be updated for start of FY
          !!paste0("Q", internal$last_qt, " Projection"),
-         !!paste0("Q", internal$last_qt, " Calculation"),
-         !!paste0("Q", internal$last_qt, " Manual Formula"),
+         Calculation = !!paste0("Q", internal$last_qt, " Calculation"),
+         !!paste0("Q", params$qt, " Manual Formula") := 
+           !!paste0("Q", internal$last_qt, " Manual Formula"),
          Notes) %>%
+  mutate(
+    Calculation := ifelse(Calculation == "ytd", "YTD",
+             tools::toTitleCase(Calculation))) %>%
   distinct()
 
 expend <- import(internal$file, which = "CurrentYearExpendituresActLevel") %>%
@@ -31,33 +36,7 @@ expend <- import(internal$file, which = "CurrentYearExpendituresActLevel") %>%
                    "Fund ID", "Object ID", "Subobject ID")) %>%
   # set ID cols as char so that they aren't formatted as accting
   mutate_at(vars(ends_with("ID")), as.character) %>%
-  # needs to be updated for start of FY
-  rename(Calculation := !!paste0("Q", internal$last_qt, " Calculation"),
-         !!paste0("Q", params$qt, " Manual Formula") :=
-           !!paste0("Q", internal$last_qt, " Manual Formula")) %>%
-  mutate(
-    Calculation = case_when(
-      is.na(Calculation) & 
-        (`Subobject ID` %in% c(110, 177, 196)) ~ "No Funds Expended",
-      is.na(Calculation) &
-        `Subobject ID` %in% c(202, 203, 331, 396, 512, 513, 740) ~ "At Budget",
-      # this overwrites these subobjects with manual calculations, even if there 
-      # was already a calculation there
-        `Subobject ID` %in% c(0, 318, 326, 350, 351, 503, 508) ~ "Manual",
-      is.na(Calculation) ~ "Straight",
-      TRUE ~ Calculation),
-    Calculation = ifelse(Calculation == "ytd", "YTD",  tools::toTitleCase(Calculation)))
-
-# sick leave conversion
-if (params$qt == 1) {
-  expend <- expend %>%
-    mutate(Calculation = ifelse(`Subobject ID` == "115", "At budget", Calculation))
-} else {
-  expend <- expend %>%
-    mutate(Calculation = ifelse(`Subobject ID` == "115", "YTD", Calculation))
-}
-
-expend <- expend %>%
+  apply_standard_calcs(.) %>%
   make_proj_formulas(.) %>%
   rename(!!internal$col.calc := Calculation,
          !!internal$col.proj := Projection,
@@ -110,5 +89,5 @@ agency_data <- map(x, subset_agency_data) %>%
   map(x, apply_excel_formulas, .) %>%
   set_names(x)
 
-map(x[1], export_projections_tab, agency_data)
-map(x[1], export_pivot_tabs, agency_data)
+map(x, export_projections_tab, agency_data)
+map(x, export_pivot_tabs, agency_data)
