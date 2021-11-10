@@ -8,7 +8,7 @@ params <- list(qt = 1, # either the current qt (if quarterly) or most recent qt 
 source("r/setup.R")
 
 internal <- setup_internal(proj = "quarterly")
-internal$months.in <- 2 # NO SEPT DATA FOR FY22 Q1 YET
+# internal$months.in <- 2 # NO SEPT DATA FOR FY22 Q1 YET
 
 calcs <- import_analyst_calcs()
 
@@ -51,6 +51,7 @@ expend <- import(internal$file, which = "CurrentYearExpendituresActLevel") %>%
   # drop cols for future months since there is no data yet
   select(-one_of(c(month.name[7:12], month.name[1:6])[(internal$months.in + 1):12])) %>%
   set_colnames(rename_cols(.)) %>%
+  select(-carryforwardpurpose) %>%
   rename(`YTD Exp` = bapsytdexp) %>%
   filter(!is.na(`Agency ID`) & !is.na(`Service ID`)) %>% # remove total lines
   # can't join by 'Name' cols since sometimes the name changes from qt to qt
@@ -61,6 +62,8 @@ expend <- import(internal$file, which = "CurrentYearExpendituresActLevel") %>%
   mutate_at(vars(ends_with("ID")), as.character) %>%
   apply_standard_calcs(.) %>%
   make_proj_formulas(.) %>%
+  mutate(Calculation := ifelse(Calculation == "ytd", "YTD",
+                               tools::toTitleCase(Calculation))) %>%
   rename(!!internal$col.calc := Calculation,
          !!internal$col.proj := Projection,
          !!internal$col.surdef := `Surplus/Deficit`) %>%
@@ -96,8 +99,6 @@ x <- analysts %>%
   extract2("Agency ID") %>%
   # casino funds, parking funds, and Parking Authority need separate projections
   c(., 4311, 4376, "casino", "parking")
-
-create_analyst_dirs("quarterly_dist/", "Zhenya Ergova")
 
 agency_data <- map(x, subset_agency_data) %>%
   set_names(x) %>%
