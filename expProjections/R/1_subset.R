@@ -88,7 +88,7 @@ subset_agency_data <- function(agency_id, proj = "quarterly") {
         map(ungroup)
 
       data[c("line.item", "object", "subobject", "program.surdef")] %<>%
-        map(filter, `Fund ID` %in% c("1001", "Total"))
+        map(filter, `Fund ID` %in% c("1001", "Total") | `Agency ID` == "4392")
 
       data$analyst %<>% extract2("Analyst")
       data$agency %<>% extract2("Agency Name - Cleaned")
