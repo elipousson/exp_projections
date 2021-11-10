@@ -44,6 +44,17 @@ export_projections_tab <- function(agency_id, list) {
              gridExpand = TRUE, stack = FALSE,
              cols = grep(paste0(c(internal$col.proj, internal$col.surdef),
                                 collapse = "|"), names(data$line.item)))
+    writeComment(
+      excel, 1, grep(paste0("^", internal$col.calc), names(data$line.item)), row = 1,
+      createComment(
+        paste("Please use the drop-down instead of typing. If 'Manual' is selected, you should overwrite the formula in the",
+              internal$col.proj, "column with your own calculation and then copy the manual formula over to the Manual Calculation column."),
+        visible = FALSE, width = 3, height = 6))
+    writeComment(
+      excel, 1, grep(paste0("^Q", params$qt, " Manual Formula"), names(data$line.item)), row = 1,
+      createComment(
+        "This should be an Excel formula without the preceding equal sign. Do not write notes in this column; use the Notes column instead.",
+        visible = FALSE, width = 3))
     saveWorkbook(excel, data$file, overwrite = TRUE)
 
     # needed for validation of Qx Calculation column
