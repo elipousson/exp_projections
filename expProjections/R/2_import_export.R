@@ -85,6 +85,9 @@ run_summary_reports <- function(df) {
       group_by(`Agency ID`, `Agency Name`, `Service ID`, `Service Name`,
                `Object ID`, `Object Name`,
                `Subobject ID`, `Subobject Name`),
+    pillar = df %>%
+      group_by(`Agency ID`, `Agency Name`, `Service ID`, `Service Name`,
+               `Pillar ID`, `Pillar Name`),
     agency = df %>%
       group_by(`Agency Name`)) %>%
     map(summarize_at,
@@ -109,6 +112,8 @@ run_summary_reports <- function(df) {
                col_width = rep(15, ncol(reports$object)))
   export_excel(reports$subobject, "Subobject", internal$output, "existing",
                col_width = rep(15, ncol(reports$subobject)))
+  export_excel(reports$pillar, "Pillar", internal$output, "existing",
+               col_width = rep(15, ncol(reports$pillar)))
   export_excel(reports$agency, "Agency", internal$output, "existing")
 
 }

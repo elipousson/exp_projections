@@ -56,5 +56,29 @@ kable(chiefs_report, booktabs = TRUE, longtable = TRUE, align = c('l', 'l', rep(
 
 ```
 
+\newpage
+
+### By Pillar
+
+```{r, fig.align = "center"}
+
+pillar <- compiled %>%
+  mutate(`Pillar Name` = ifelse(is.na(`Pillar Name`), "Other", `Pillar Name`)) %>%
+  group_by(`Pillar Name`) %>%
+  summarize_if(is.numeric, sum)
+
+pillar %>%
+  bookHelpers::format_table_numbers() %>%
+  kable(booktabs = TRUE, longtable = TRUE, align = c('l', rep('r', 4))) %>%
+  row_spec(0,  bold = TRUE) %>%
+  kable_styling(latex_options = c("repeat_header"), font_size = 7) 
+
+pillar %>%
+  select(label = `Pillar Name`, `Total Budget`, `Q1 Projection`, `Q1 Surplus/Deficit`) %>%
+  arrange(`Pillar Name`) %>%
+  bookHelpers::format_plot(
+    "bar_group", set_scale = "m", set_min_y = 0, set_max_y = 1000000000,  margin_b = 50, 
+    bar_anno_col = "Q1 Surplus/Deficit", bar_anno_word_positive = " surplus", bar_anno_word_negative = " deficit") %>%
+  bookHelpers::export_plotly("pillars", width = "950", height = "500")
 
 ```
