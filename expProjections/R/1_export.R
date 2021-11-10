@@ -15,7 +15,7 @@ export_projections_tab <- function(agency_id, list) {
 
   tryCatch({
     style <- list(cell.bg = createStyle(fgFill = "lightcyan", border = "TopBottomLeftRight",
-                                        borderColour = "white"),
+                                        borderColour = "black", textDecoration = "bold"),
                   formula.num = createStyle(numFmt = "#,##0"),
                   negative = createStyle(fontColour = "#9C0006"))
 
@@ -38,7 +38,7 @@ export_projections_tab <- function(agency_id, list) {
                          collapse = "|"), names(data$line.item)))
     addStyle(excel, 1, style$cell.bg, rows = 1,
              gridExpand = TRUE, stack = FALSE,
-             cols = grep(paste0(c(internal$col.proj, internal$col.calc),
+             cols = grep(paste0(c(paste0("^", internal$col.proj), paste0("^", internal$col.calc)),
                                 collapse = "|"), names(data$line.item)))
     addStyle(excel, 1, style$formula.num, rows = style$rows,
              gridExpand = TRUE, stack = FALSE,
