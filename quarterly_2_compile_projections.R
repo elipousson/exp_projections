@@ -6,8 +6,8 @@
 #      the Chief's Report to match
 
 params <- list(
-  fy = 21,
-  qt = 2,
+  fy = 22,
+  qt = 1,
   # NA if there is no edited compiled file
   compiled_edit = NA)
 
@@ -15,10 +15,13 @@ params <- list(
 
 library(knitr)
 library(kableExtra)
+library(expProjections)
 
 source("r/setup.R")
 
 internal <- setup_internal(proj = "quarterly")
+
+internal$analyst_files <- "G:/Fiscal Years/Fiscal 2022/Projections Year/4. Quarterly Projections/1st Quarter/4. Expenditure Backup"
 
 if (is.na(params$compiled_edit)) {
   
@@ -54,8 +57,12 @@ if (is.na(params$compiled_edit)) {
              `Subobject ID`, `Subobject Name`, `Activity ID`, `Activity Name`,
              !!sym(internal$col.calc)) %>%
     summarize_if(is.numeric, sum, na.rm = TRUE) %>%
-    ungroup() %>%
-    mutate(`Q1 Projection` = ifelse(`Subobject ID` == "161", `YTD Exp` * 2, `Q1 Projection`)) %>%
+    ungroup()
+  
+  if (params$qt == 1) {
+    compiled %>%
+      mutate(`Q1 Projection` = ifelse(`Subobject ID` == "161", `YTD Exp` * 2, `Q1 Projection`))
+  }
     combine_agencies() %>%
     rename_factor_object() %>%
     arrange(`Agency ID`, `Service ID`, `Fund ID`, `Object ID`, `Subobject ID`) %>% 
