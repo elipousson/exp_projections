@@ -15,10 +15,10 @@
 import_analyst_files <- function(files) {
 
   files %>%
-    map(import, which = "Projection") %>%
+    map(import, which = "Projection", guess_max = 2000) %>%
     set_names(files) %>%
     map(select, ends_with("Name"), ends_with("ID"),
-        matches("^Q[1-4]{1} Calculation$|^Q[1-4]{1} Manual Formula$|^Q[1-4]{1} Projection$|^Q[1-4]{1} Surplus"),
+        matches("^Q[1-4]{1} Calculation$|^Q[1-4]{1} Manual Formula$|^Q[1-4]{1} Projection$|^Q[1-4]{1} Surplus/Deficit$"),
         `YTD Exp`, `Total Budget`, Notes) %>%
     # changing data types here, before bind_rows()
     map(mutate_at, vars(matches(".*ID|.*Calculation|.*Manual Formula|.*Notes")), as.character) %>%
