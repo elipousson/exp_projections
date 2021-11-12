@@ -32,4 +32,21 @@ proj$q3 <- proj$q3 %>%
 proj$final <- proj$q1 %>%
   full_join(proj$q2) %>%
   full_join(proj$q3)
+
+df <- expend %>%
+  filter(!is.na(`Agency ID`),
+         `Fund Name` == "General") %>%
+  mutate_at(vars(ends_with("ID")), as.character) %>%
+  group_by(`Agency Name`, `Object ID`, `Object Name`) %>%
+  summarize_at(vars(`Total Budget`, `BAPS YTD EXP`), sum, na.rm = TRUE) %>%
+  rename(`FY21 Total Budget` = `Total Budget`, `FY21 Actual` = `BAPS YTD EXP`) %>%
+  left_join(proj$final) %>%
+  mutate_if(is.numeric, replace_na, 0) %>%
+  mutate(
+    `Q1 Difference` = `Q1 Projection` - `FY21 Actual`,
+    `Q2 Difference` = `Q2 Projection` - `FY21 Actual`,
+    `Q3 Difference` = `Q3 Projection` - `FY21 Actual`) %>%
+  ungroup()
+
+
 ```
