@@ -1,0 +1,35 @@
+---
+title: "FY21 Projection Accuracy"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(rio)
+library(bookHelpers)
+library(kableExtra)
+library(ggplot2)
+
+knitr::opts_chunk$set(echo = FALSE)
+last_year <- import("G:/Analyst Folders/Lillian/exp_projection_year/projections/quarterly_outputs/archive/FY21 Q3 Projection.xlsx")
+
+expend <- import("G:/Fiscal Years/Fiscal 2021/Projections Year/2. Monthly Expenditure Data/Month 12_June Projections/Expenditure 2021-06_Run_9.xlsx")
+
+proj <- list(
+  q1 = import("G:/Analyst Folders/Lillian/exp_projection_year/projections/quarterly_outputs/archive/FY21 Q1 Projection.xlsx"),
+  q2 = import("G:/Analyst Folders/Lillian/exp_projection_year/projections/quarterly_outputs/archive/FY21 Q2 Projection.xlsx"),
+  q3 = import("G:/Analyst Folders/Lillian/exp_projection_year/projections/quarterly_outputs/archive/FY21 Q3 Projection.xlsx")) %>%
+  map(mutate_at, vars(ends_with("ID")), as.character) %>%
+  map(group_by, `Agency Name`, `Object ID`)
+  
+proj$q1 <- proj$q1 %>%
+  summarize(`Q1 Projection` = sum(`Q1 Projection`, na.rm = TRUE))
+proj$q2 <- proj$q2 %>%
+  summarize(`Q2 Projection` = sum(`Q2 Projection`, na.rm = TRUE))
+proj$q3 <- proj$q3 %>%
+  summarize(`Q3 Projection` = sum(`Q3 Projection`, na.rm = TRUE))
+
+proj$final <- proj$q1 %>%
+  full_join(proj$q2) %>%
+  full_join(proj$q3)
+```
