@@ -2,18 +2,26 @@
 title: "FY21 Projection Accuracy"
 output: html_document
 ---
-
+  
 ```{r setup, include=FALSE}
 library(tidyverse)
 library(rio)
 library(bookHelpers)
 library(kableExtra)
 library(ggplot2)
+library(assertthat)
 
 knitr::opts_chunk$set(echo = FALSE)
 last_year <- import("G:/Analyst Folders/Lillian/exp_projection_year/projections/quarterly_outputs/archive/FY21 Q3 Projection.xlsx")
 
-expend <- import("G:/Fiscal Years/Fiscal 2021/Projections Year/2. Monthly Expenditure Data/Month 12_June Projections/Expenditure 2021-06_Run_9.xlsx")
+expend <- import("G:/Fiscal Years/Fiscal 2021/Projections Year/2. Monthly Expenditure Data/Month 12_June Projections/Expenditure 2021-06_Run_9.xlsx") %>%
+  filter(!is.na(`Agency ID`),
+         `Fund Name` == "General") %>% 
+  mutate_at(vars(ends_with("ID")), as.character)
+
+totals <- expend %>%
+  summarize_at(vars(c(`Total Budget`, `BAPS YTD EXP`)), sum, na.rm = TRUE) %>%
+  rename(`FY21 Total Budget` = `Total Budget`, `FY21 Actual` = `BAPS YTD EXP`)
 
 proj <- list(
   q1 = import("G:/Analyst Folders/Lillian/exp_projection_year/projections/quarterly_outputs/archive/FY21 Q1 Projection.xlsx"),
@@ -21,7 +29,7 @@ proj <- list(
   q3 = import("G:/Analyst Folders/Lillian/exp_projection_year/projections/quarterly_outputs/archive/FY21 Q3 Projection.xlsx")) %>%
   map(mutate_at, vars(ends_with("ID")), as.character) %>%
   map(group_by, `Agency Name`, `Object ID`)
-  
+
 proj$q1 <- proj$q1 %>%
   summarize(`Q1 Projection` = sum(`Q1 Projection`, na.rm = TRUE))
 proj$q2 <- proj$q2 %>%
@@ -49,23 +57,53 @@ df <- expend %>%
     `Q3 Difference` = `Q3 Projection` - `FY21 Actual`) %>%
   ungroup()
 
+prep_data <- function(df, type) {
+  
+  if (type != "Citywide") {
+    group <- c("FY21 Total Budget", "FY21 Actual", NULL, type)
+    
+    df <- df %>%
+      group_by_at(type) %>%
+      summarize_if(is.numeric, sum, na.rm = TRUE) 
+    
+  } else {
+    group <- c("FY21 Total Budget", "FY21 Actual")
+    
+    df <- df %>%
+      summarize_if(is.numeric, sum, na.rm = TRUE) 
+  }
+  
+  df <- df %>%
+    pivot_longer(starts_with("Q")) %>%
+    separate(name, into = c("Quarter", "Type"), sep = " ", extra = "merge") %>%
+    pivot_wider(names_from = "Type", values_from = "value") %>%
+    bind_total_row(total_col = "Quarter", total_name = "GRAND TOTAL", 
+                   group_col = c("FY21 Total Budget", "FY21 Actual", group)) %>%
+    mutate(Projection = ifelse(Quarter == "GRAND TOTAL", Projection / 3, Projection),
+           Difference = ifelse(Quarter == "GRAND TOTAL", Difference / 3, Difference),
+           `Percent Change` = Difference / `FY21 Actual`)
+  
+  check <- df %>%
+    filter(Quarter == "GRAND TOTAL") %>%
+    summarize_at(vars(`FY21 Total Budget`, `FY21 Actual`), sum, na.rm = TRUE)
+  
+  assert_that(check$`FY21 Total Budget` == totals$`FY21 Total Budget`,
+              check$`FY21 Actual` == totals$`FY21 Actual`)
+  
+  return(df)
+}
+
 ```
 
 - High accuracy: 1-3%
 - Medium accuracy: 4-10%
 - Low accuracy: 11%+
-
+  
 ## Citywide accuracy
-
+  
 ```{r citywide}
 
-output <- df %>%
-  summarize_if(is.numeric, sum, na.rm = TRUE) %>%
-  pivot_longer(starts_with("Q")) %>%
-  separate(name, into = c("Quarter", "Type"), sep = " ", extra = "merge") %>%
-  pivot_wider(names_from = "Type", values_from = "value") %>%
-  bind_total_row(total_col = "Quarter", total_name = "GRAND TOTAL") %>%
-  mutate(`Percent Change` = Difference / `FY21 Actual`)
+output <- prep_data(projections, "Citywide")
 
 output %>%
   mutate(`Percent Change` = scales::percent(`Percent Change`, accuracy = 0.01),
@@ -89,19 +127,7 @@ Overall object accuracy is based on the percent change between the average of th
 
 ```{r object, fig.height=10, fig.width=7, fig.align='center'}
 
-output <- df %>%
-  group_by(Object) %>%
-  summarize_if(is.numeric, sum, na.rm = TRUE) %>%
-  ungroup() %>%
-  pivot_longer(starts_with("Q")) %>%
-  separate(name, into = c("Quarter", "Type"), sep = " ", extra = "merge") %>%
-  pivot_wider(names_from = "Type", values_from = "value") %>%
-  bind_total_row(total_col = "Quarter", total_name = "GRAND TOTAL", 
-                 group_col = c("FY21 Total Budget", "FY21 Actual", "Object")) %>%
-  arrange(Object, Quarter) %>%
-  mutate(Projection = ifelse(Quarter == "GRAND TOTAL", Projection / 3, Projection),
-         Difference = ifelse(Quarter == "GRAND TOTAL", Difference / 3, Difference),
-         `Percent Change` = Difference / `FY21 Actual`)
+output <- prep_data(projections, "Object")
 ```
 
 ```{r}
@@ -136,20 +162,7 @@ Overall agency accuracy is based on the percent change between the average of th
 
 ```{r agency, fig.height=40, fig.width=7, fig.align='center'}
 
-output <- df %>%
-  group_by(`Agency Name`) %>%
-  summarize_if(is.numeric, sum, na.rm = TRUE) %>%
-  ungroup() %>%
-  pivot_longer(starts_with("Q")) %>%
-  separate(name, into = c("Quarter", "Type"), sep = " ", extra = "merge") %>%
-  pivot_wider(names_from = "Type", values_from = "value") %>%
-  filter(`FY21 Total Budget` != 0 & Projection != 0) %>%
-  bind_total_row(total_col = "Quarter", total_name = "GRAND TOTAL", 
-                 group_col = c("FY21 Total Budget", "FY21 Actual", "Agency Name")) %>%
-  arrange(`Agency Name`, Quarter) %>%
-  mutate(Projection = ifelse(Quarter == "GRAND TOTAL", Projection / 3, Projection),
-         Difference = ifelse(Quarter == "GRAND TOTAL", Difference / 3, Difference),
-         `Percent Change` = Difference / `FY21 Actual`)
+output <- prep_data(projections, "Agency Name")
 
 ```
 
