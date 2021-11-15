@@ -68,7 +68,14 @@ output <- df %>%
   mutate(`Percent Change` = Difference / `FY21 Actual`)
 
 output %>%
-  mutate(`Percent Change` = scales::percent(`Percent Change`, accuracy = 0.01)) %>%
+  mutate(`Percent Change` = scales::percent(`Percent Change`, accuracy = 0.01),
+         # using cell_spec instead of column_spec to set the background color bc the latter
+         # colors the whole background, which is overwhelming
+         `Percent Change` = cell_spec(`Percent Change`, 'html', color = "white", bold = TRUE,
+                                      background= 
+                                        case_when(abs(output$`Percent Change`) < .04 ~ "#69B34C",
+                                                  abs(output$`Percent Change`) > .11 ~ "#FF0D0D",
+                                                  TRUE ~ "#EFB700"))) %>%
   format_table_numbers() %>%
   format_table(total = TRUE, escape = FALSE) %>%
   collapse_rows(1:3, latex_hline = "major", valign = "top") 
@@ -103,7 +110,19 @@ output %>%
          Projection = ifelse(Quarter == "GRAND TOTAL", paste(format_number(Projection, accuracy = 1L), "(avg)"),
                              format_number(Projection, accuracy = 1L)),
          Difference = ifelse(Quarter == "GRAND TOTAL", paste(format_number(Difference, accuracy = 1L), "(avg)"), 
-                             format_number(Difference, accuracy = 1L))) %>%
+                             format_number(Difference, accuracy = 1L)),
+         # using cell_spec instead of column_spec to set the background color bc the latter
+         # colors the whole background, which is overwhelming
+         `Percent Change` = cell_spec(`Percent Change`, 'html', color = "white",  bold = TRUE,
+                                      background= 
+                                        case_when(abs(output$`Percent Change`) < .04 ~ "#69B34C",
+                                                  abs(output$`Percent Change`) > .11 ~ "#FF0D0D",
+                                                  TRUE ~ "#EFB700")),
+         Object = cell_spec(Object, 'html', color = "white",  bold = TRUE,
+                            background= 
+                              case_when(abs(output$`Percent Change`) < .04 ~ "#69B34C",
+                                        abs(output$`Percent Change`) > .11 ~ "#FF0D0D",
+                                        TRUE ~ "#EFB700"))) %>%
   format_table_numbers() %>%
   format_table(total = TRUE, align = c("l", "l", rep("r", "5")), escape = FALSE) %>%
   row_spec(which(output$Quarter == "GRAND TOTAL"), bold = TRUE) %>%
@@ -141,9 +160,21 @@ output %>%
          Projection = ifelse(Quarter == "GRAND TOTAL", paste(format_number(Projection, accuracy = 1L), "(avg)"),
                              format_number(Projection, accuracy = 1L)),
          Difference = ifelse(Quarter == "GRAND TOTAL", paste(format_number(Difference, accuracy = 1L), "(avg)"), 
-                             format_number(Difference, accuracy = 1L))) %>%
+                             format_number(Difference, accuracy = 1L)),
+         # using cell_spec instead of column_spec to set the background color bc the latter
+         # colors the whole background, which is overwhelming
+         `Percent Change` = cell_spec(`Percent Change`, 'html', color = "white",  bold = TRUE,
+                                      background= 
+                                        case_when(abs(output$`Percent Change`) < .04 ~ "#69B34C",
+                                                  abs(output$`Percent Change`) > .11 ~ "#FF0D0D",
+                                                  TRUE ~ "#EFB700")),
+         `Agency Name` = cell_spec(`Agency Name`, 'html', color = "white",  bold = TRUE,
+                            background= 
+                              case_when(abs(output$`Percent Change`) < .04 ~ "#69B34C",
+                                        abs(output$`Percent Change`) > .11 ~ "#FF0D0D",
+                                        TRUE ~ "#EFB700"))) %>%
   format_table_numbers() %>%
-  format_table(total = TRUE, align = c("l", "l", rep("r", "5"))) %>%
+  format_table(total = TRUE, align = c("l", "l", rep("r", "5")), escape = FALSE) %>%
   row_spec(which(output$Quarter == "GRAND TOTAL"), bold = TRUE) %>%
   collapse_rows(1:4, latex_hline = "major", valign = "top") 
 
