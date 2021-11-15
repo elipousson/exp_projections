@@ -37,7 +37,8 @@ df <- expend %>%
   filter(!is.na(`Agency ID`),
          `Fund Name` == "General") %>%
   mutate_at(vars(ends_with("ID")), as.character) %>%
-  group_by(`Agency Name`, `Object ID`, `Object Name`) %>%
+  unite(col = "Object",  c(`Object ID`, `Object Name`), sep = " ") %>%
+  group_by(`Agency Name`, Object) %>%
   summarize_at(vars(`Total Budget`, `BAPS YTD EXP`), sum, na.rm = TRUE) %>%
   rename(`FY21 Total Budget` = `Total Budget`, `FY21 Actual` = `BAPS YTD EXP`) %>%
   left_join(proj$final) %>%
@@ -48,5 +49,102 @@ df <- expend %>%
     `Q3 Difference` = `Q3 Projection` - `FY21 Actual`) %>%
   ungroup()
 
+```
+
+- High accuracy: 1-3%
+- Medium accuracy: 4-10%
+- Low accuracy: 11%+
+
+## Citywide accuracy
+
+```{r citywide}
+
+output <- df %>%
+  summarize_if(is.numeric, sum, na.rm = TRUE) %>%
+  pivot_longer(starts_with("Q")) %>%
+  separate(name, into = c("Quarter", "Type"), sep = " ", extra = "merge") %>%
+  pivot_wider(names_from = "Type", values_from = "value") %>%
+  bind_total_row(total_col = "Quarter", total_name = "GRAND TOTAL") %>%
+  mutate(`Percent Change` = Difference / `FY21 Actual`)
+
+output %>%
+  mutate(`Percent Change` = scales::percent(`Percent Change`, accuracy = 0.01)) %>%
+  format_table_numbers() %>%
+  format_table(total = TRUE, escape = FALSE) %>%
+  collapse_rows(1:3, latex_hline = "major", valign = "top") 
+
+```
+
+
+## Object accuracy
+
+Overall object accuracy is based on the percent change between the average of the `Projection` over all 3 quarters and the `FY21 Actual`.
+
+```{r object, fig.height=10, fig.width=7, fig.align='center'}
+
+output <- df %>%
+  group_by(Object) %>%
+  summarize_if(is.numeric, sum, na.rm = TRUE) %>%
+  ungroup() %>%
+  pivot_longer(starts_with("Q")) %>%
+  separate(name, into = c("Quarter", "Type"), sep = " ", extra = "merge") %>%
+  pivot_wider(names_from = "Type", values_from = "value") %>%
+  bind_total_row(total_col = "Quarter", total_name = "GRAND TOTAL", 
+                 group_col = c("FY21 Total Budget", "FY21 Actual", "Object")) %>%
+  arrange(Object, Quarter) %>%
+  mutate(Projection = ifelse(Quarter == "GRAND TOTAL", Projection / 3, Projection),
+         Difference = ifelse(Quarter == "GRAND TOTAL", Difference / 3, Difference),
+         `Percent Change` = Difference / `FY21 Actual`)
+```
+
+```{r}
+output %>%
+  mutate(`Percent Change` = scales::percent(`Percent Change`, accuracy = 0.01),
+         Projection = ifelse(Quarter == "GRAND TOTAL", paste(format_number(Projection, accuracy = 1L), "(avg)"),
+                             format_number(Projection, accuracy = 1L)),
+         Difference = ifelse(Quarter == "GRAND TOTAL", paste(format_number(Difference, accuracy = 1L), "(avg)"), 
+                             format_number(Difference, accuracy = 1L))) %>%
+  format_table_numbers() %>%
+  format_table(total = TRUE, align = c("l", "l", rep("r", "5")), escape = FALSE) %>%
+  row_spec(which(output$Quarter == "GRAND TOTAL"), bold = TRUE) %>%
+  collapse_rows(1:4, latex_hline = "major", valign = "top") 
+```
+
+
+## Agency accuracy
+
+Overall agency accuracy is based on the percent change between the average of the `Projection` over all 3 quarters and the `FY21 Actual`.
+
+```{r agency, fig.height=40, fig.width=7, fig.align='center'}
+
+output <- df %>%
+  group_by(`Agency Name`) %>%
+  summarize_if(is.numeric, sum, na.rm = TRUE) %>%
+  ungroup() %>%
+  pivot_longer(starts_with("Q")) %>%
+  separate(name, into = c("Quarter", "Type"), sep = " ", extra = "merge") %>%
+  pivot_wider(names_from = "Type", values_from = "value") %>%
+  filter(`FY21 Total Budget` != 0 & Projection != 0) %>%
+  bind_total_row(total_col = "Quarter", total_name = "GRAND TOTAL", 
+                 group_col = c("FY21 Total Budget", "FY21 Actual", "Agency Name")) %>%
+  arrange(`Agency Name`, Quarter) %>%
+  mutate(Projection = ifelse(Quarter == "GRAND TOTAL", Projection / 3, Projection),
+         Difference = ifelse(Quarter == "GRAND TOTAL", Difference / 3, Difference),
+         `Percent Change` = Difference / `FY21 Actual`)
+
+```
+
+
+```{r agency table}
+output %>%
+  mutate(`Percent Change` = scales::percent(`Percent Change`, accuracy = 0.01),
+         Projection = ifelse(Quarter == "GRAND TOTAL", paste(format_number(Projection, accuracy = 1L), "(avg)"),
+                             format_number(Projection, accuracy = 1L)),
+         Difference = ifelse(Quarter == "GRAND TOTAL", paste(format_number(Difference, accuracy = 1L), "(avg)"), 
+                             format_number(Difference, accuracy = 1L))) %>%
+  format_table_numbers() %>%
+  format_table(total = TRUE, align = c("l", "l", rep("r", "5"))) %>%
+  row_spec(which(output$Quarter == "GRAND TOTAL"), bold = TRUE) %>%
+  collapse_rows(1:4, latex_hline = "major", valign = "top") 
 
 ```
