@@ -125,6 +125,21 @@ Overall object accuracy is based on the percent change between the average of th
 ```{r object, fig.height=10, fig.width=7, fig.align='center'}
 
 output <- prep_data(projections, "Object")
+
+output %>%
+  ggplot(aes(x = Quarter, y = `Percent Change`)) + 
+  geom_bar(stat = "identity") +
+  # geom_text(aes(label = Quarter), size = 3, hjust = 1) +
+  facet_wrap(~Object, ncol = 1) +
+  scale_y_continuous(limits = c(-.25, 1.25), breaks = seq(-.25, .25, .05),
+                     labels = scales::percent_format(accuracy = 1),
+                     sec.axis = dup_axis()) +
+  geom_hline(yintercept = 0, color = "#69B34C", size = 1.2) +
+  geom_hline(yintercept = c(-.04, .04), color = "#EFB700", size = 1.2) +
+  geom_hline(yintercept = c(-.11, .11), color = "#FF0D0D", size = 1.2) +
+  coord_flip(ylim = c(-.25, .25)) +
+  theme_minimal()
+
 ```
 
 ```{r}
@@ -160,6 +175,20 @@ Overall agency accuracy is based on the percent change between the average of th
 ```{r agency, fig.height=40, fig.width=7, fig.align='center'}
 
 output <- prep_data(projections, "Agency Name")
+
+output %>%
+  ggplot(aes(x = Quarter, y = `Percent Change`)) + 
+  geom_bar(stat = "identity") +
+  # geom_text(aes(label = Quarter), size = 3, hjust = 1) +
+  facet_wrap(~`Agency Name`, ncol = 1) +
+  scale_y_continuous(limits = c(-.25, 1.25), breaks = seq(-.25, .25, .05),
+                     labels = scales::percent_format(accuracy = 1),
+                     sec.axis = dup_axis()) +
+  geom_hline(yintercept = 0, color = "#69B34C", size = 1.2) +
+  geom_hline(yintercept = c(-.04, .04), color = "#EFB700", size = 1.2) +
+  geom_hline(yintercept = c(-.11, .11), color = "#FF0D0D", size = 1.2) +
+  coord_flip(ylim = c(-.25, .25)) +
+  theme_minimal()
 
 ```
 
