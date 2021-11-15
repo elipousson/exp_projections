@@ -90,6 +90,29 @@ prep_data <- function(df, type) {
   return(df)
 }
 
+make_pyramid_chart <- function(df, type) {
+  df %>%
+    ggplot(aes(x = Quarter, y = `Percent Change`, color = `Percent Change`)) + 
+    geom_bar(stat = "identity") +
+    # geom_text(aes(label = Quarter), size = 3, hjust = 1) +
+    facet_wrap(as.formula(paste0("~`", type, "`")), ncol = 1) +
+    scale_y_continuous(
+      limits = c(-.25, 1.25), breaks = seq(-.25, .25, .05),
+      labels = c("Projected lower", "-20%", "-15%", "-10%", "-5%", "0%",
+                 "5%", "10%", "15%", "20%", "Projected higher"),
+      sec.axis = dup_axis(),
+      guide = guide_axis(angle = -45)) +
+    geom_hline(yintercept = 0, color = "#69B34C", size = 1.2) +
+    geom_hline(yintercept = c(-.04, .04), color = "#EFB700", size = 1.2) +
+    geom_hline(yintercept = c(-.11, .11), color = "#FF0D0D", size = 1.2) +
+    coord_flip(ylim = c(-.25, .25)) +
+    theme_minimal() +
+    theme(axis.line.x = element_line(arrow = grid::arrow(length = unit(0.3, "cm"), 
+                                                         ends = "both")),
+          axis.title.x = element_text(angle = 0),
+          plot.margin = margin(0, 50, 0, 0))
+}
+
 ```
 
 - High accuracy: 1-3%
@@ -126,19 +149,7 @@ Overall object accuracy is based on the percent change between the average of th
 
 output <- prep_data(projections, "Object")
 
-output %>%
-  ggplot(aes(x = Quarter, y = `Percent Change`)) + 
-  geom_bar(stat = "identity") +
-  # geom_text(aes(label = Quarter), size = 3, hjust = 1) +
-  facet_wrap(~Object, ncol = 1) +
-  scale_y_continuous(limits = c(-.25, 1.25), breaks = seq(-.25, .25, .05),
-                     labels = scales::percent_format(accuracy = 1),
-                     sec.axis = dup_axis()) +
-  geom_hline(yintercept = 0, color = "#69B34C", size = 1.2) +
-  geom_hline(yintercept = c(-.04, .04), color = "#EFB700", size = 1.2) +
-  geom_hline(yintercept = c(-.11, .11), color = "#FF0D0D", size = 1.2) +
-  coord_flip(ylim = c(-.25, .25)) +
-  theme_minimal()
+make_pyramid_chart(output, "Object")
 
 ```
 
@@ -172,24 +183,11 @@ output %>%
 
 Overall agency accuracy is based on the percent change between the average of the `Projection` over all 3 quarters and the `FY21 Actual`.
 
-```{r agency, fig.height=40, fig.width=7, fig.align='center'}
+```{r agency, fig.height=50, fig.width=7, fig.align='center'}
 
 output <- prep_data(projections, "Agency Name")
 
-output %>%
-  ggplot(aes(x = Quarter, y = `Percent Change`)) + 
-  geom_bar(stat = "identity") +
-  # geom_text(aes(label = Quarter), size = 3, hjust = 1) +
-  facet_wrap(~`Agency Name`, ncol = 1) +
-  scale_y_continuous(limits = c(-.25, 1.25), breaks = seq(-.25, .25, .05),
-                     labels = scales::percent_format(accuracy = 1),
-                     sec.axis = dup_axis()) +
-  geom_hline(yintercept = 0, color = "#69B34C", size = 1.2) +
-  geom_hline(yintercept = c(-.04, .04), color = "#EFB700", size = 1.2) +
-  geom_hline(yintercept = c(-.11, .11), color = "#FF0D0D", size = 1.2) +
-  coord_flip(ylim = c(-.25, .25)) +
-  theme_minimal()
-
+make_pyramid_chart(output, "Agency Name")
 ```
 
 
