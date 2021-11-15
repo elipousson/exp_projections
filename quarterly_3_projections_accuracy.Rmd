@@ -41,13 +41,9 @@ proj$final <- proj$q1 %>%
   full_join(proj$q2) %>%
   full_join(proj$q3)
 
-df <- expend %>%
-  filter(!is.na(`Agency ID`),
-         `Fund Name` == "General") %>%
-  mutate_at(vars(ends_with("ID")), as.character) %>%
-  unite(col = "Object",  c(`Object ID`, `Object Name`), sep = " ") %>%
-  group_by(`Agency Name`, Object) %>%
-  summarize_at(vars(`Total Budget`, `BAPS YTD EXP`), sum, na.rm = TRUE) %>%
+projections <- expend %>%
+  group_by(`Agency Name`, `Object ID`, `Object Name`) %>%
+  summarize_at(vars(`Total Budget`, `BAPS YTD EXP`, starts_with("Q")), sum, na.rm = TRUE) %>%
   rename(`FY21 Total Budget` = `Total Budget`, `FY21 Actual` = `BAPS YTD EXP`) %>%
   left_join(proj$final) %>%
   mutate_if(is.numeric, replace_na, 0) %>%
@@ -55,7 +51,8 @@ df <- expend %>%
     `Q1 Difference` = `Q1 Projection` - `FY21 Actual`,
     `Q2 Difference` = `Q2 Projection` - `FY21 Actual`,
     `Q3 Difference` = `Q3 Projection` - `FY21 Actual`) %>%
-  ungroup()
+  ungroup() %>%
+  unite(col = "Object",  c(`Object ID`, `Object Name`), sep = " ")
 
 prep_data <- function(df, type) {
   
