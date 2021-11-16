@@ -15,10 +15,10 @@
 import_analyst_files <- function(files) {
 
   files %>%
-    map(import, which = "Projection") %>%
+    map(import, which = "Projection", guess_max = 2000) %>%
     set_names(files) %>%
     map(select, ends_with("Name"), ends_with("ID"),
-        matches("^Q[1-4]{1} Calculation$|^Q[1-4]{1} Manual Formula$|^Q[1-4]{1} Projection$|^Q[1-4]{1} Surplus"),
+        matches("^Q[1-4]{1} Calculation$|^Q[1-4]{1} Manual Formula$|^Q[1-4]{1} Projection$|^Q[1-4]{1} Surplus/Deficit$"),
         `YTD Exp`, `Total Budget`, Notes) %>%
     # changing data types here, before bind_rows()
     map(mutate_at, vars(matches(".*ID|.*Calculation|.*Manual Formula|.*Notes")), as.character) %>%
@@ -85,6 +85,9 @@ run_summary_reports <- function(df) {
       group_by(`Agency ID`, `Agency Name`, `Service ID`, `Service Name`,
                `Object ID`, `Object Name`,
                `Subobject ID`, `Subobject Name`),
+    pillar = df %>%
+      group_by(`Agency ID`, `Agency Name`, `Service ID`, `Service Name`,
+               `Pillar ID`, `Pillar Name`),
     agency = df %>%
       group_by(`Agency Name`)) %>%
     map(summarize_at,
@@ -109,6 +112,8 @@ run_summary_reports <- function(df) {
                col_width = rep(15, ncol(reports$object)))
   export_excel(reports$subobject, "Subobject", internal$output, "existing",
                col_width = rep(15, ncol(reports$subobject)))
+  export_excel(reports$pillar, "Pillar", internal$output, "existing",
+               col_width = rep(15, ncol(reports$pillar)))
   export_excel(reports$agency, "Agency", internal$output, "existing")
 
 }

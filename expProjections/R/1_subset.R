@@ -88,7 +88,7 @@ subset_agency_data <- function(agency_id, proj = "quarterly") {
         map(ungroup)
 
       data[c("line.item", "object", "subobject", "program.surdef")] %<>%
-        map(filter, `Fund ID` %in% c("1001", "Total"))
+        map(filter, `Fund ID` %in% c("1001", "Total") | `Agency ID` == "4392")
 
       data$analyst %<>% extract2("Analyst")
       data$agency %<>% extract2("Agency Name - Cleaned")
@@ -96,20 +96,31 @@ subset_agency_data <- function(agency_id, proj = "quarterly") {
       data[c("object", "subobject", "program.surdef")] %<>%
         map(select, -starts_with("Agency"))
     }
-
+    
     if (proj == "monthly") {
-
-      data$file <- paste0("monthly_dist/", data$analyst, "/",
-                          data$agency, " FY", params$fy, " ", internal$month,
-                          " Projections.xlsx")
-
+      
+      if (agency_id %in% c("casino", "parking")) {
+        data$file <- paste0("quarterly_dist/",
+                            data$agency, " FY", params$fy, " ", internal$month,
+                            " Projections.xlsx")
+      } else {
+        data$file <- paste0("G:/Agencies/", data$agency, "/File Distribution/",
+                            data$agency, " FY", params$fy, " ", internal$month,
+                            " Projections.xlsx")
+      }
+      
     } else {
-
-      data$file <- paste0("quarterly_dist/", data$analyst, "/",
-                          data$agency, " FY", params$fy, " Q", params$qt,
-                          " Projections.xlsx")
+      if (agency_id %in% c("casino", "parking")) {
+        data$file <- paste0("quarterly_dist/",
+                            data$agency, " FY", params$fy, " ", internal$month,
+                            " Projections.xlsx")
+      } else {
+        data$file <- paste0("G:/Agencies/", data$agency, "/File Distribution/",
+                            data$agency, " FY", params$fy, " Q", params$qt,
+                            " Projections.xlsx")
+      }
     }
-
+    
     return(data)
   },
 

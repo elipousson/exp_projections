@@ -1,25 +1,49 @@
 # Distribute projection file templates
 
-params <- list(qt = 2, # either the current qt (if quarterly) or most recent qt (if monthly)
-               fy = 21) 
+params <- list(qt = 1, # either the current qt (if quarterly) or most recent qt (if monthly)
+               fy = 22) 
 
 ################################################################################
 
 source("r/setup.R")
 
 internal <- setup_internal(proj = "quarterly")
+# internal$months.in <- 2 # NO SEPT DATA FOR FY22 Q1 YET
 
-calcs <- import_analyst_calcs() %>%
-  select(ends_with("ID"), 
-         # needs to be updated for start of FY
-         !!paste0("Q", internal$last_qt, " Projection"),
-         Calculation = !!paste0("Q", internal$last_qt, " Calculation"),
-         !!paste0("Q", params$qt, " Manual Formula") := 
-           !!paste0("Q", internal$last_qt, " Manual Formula"),
-         Notes) %>%
-  mutate(
-    Calculation := ifelse(Calculation == "ytd", "YTD",
-             tools::toTitleCase(Calculation))) %>%
+calcs <- import_analyst_calcs()
+
+if (params$qt == 1) {
+  calcs <- calcs %>%
+    mutate(!!paste0("FY", params$fy - 1, " Q", params$qt, " Surplus/Deficit") := 
+             `Total Budget` - `Q1 Projection`,
+           !!paste0("FY", params$fy - 1, " Q", internal$last_qt, " Surplus/Deficit") := 
+             `Total Budget` - `Q3 Projection`) %>%
+    select(ends_with("ID"), 
+           !!paste0("FY", params$fy - 1, " Budget") := `Total Budget`,
+           !!paste0("FY", params$fy - 1, " Q", params$qt, " Projection") := 
+             !!paste0("Q", params$qt, " Projection"),
+           !!paste0("FY", params$fy - 1, " Q", params$qt, " Surplus/Deficit"),
+           !!paste0("FY", params$fy - 1, " Q", internal$last_qt, " Projection") := 
+             !!paste0("Q", internal$last_qt, " Projection"),
+           !!paste0("FY", params$fy - 1, " Q", internal$last_qt, " Surplus/Deficit"),
+           Calculation = !!paste0("Q", internal$last_qt, " Calculation"),
+           !!paste0("Q", params$qt, " Manual Formula") := 
+             !!paste0("Q", internal$last_qt, " Manual Formula"),
+           Notes)
+} else {
+  calcs <- calcs %>%
+    select(ends_with("ID"),
+           # needs to be updated for start of FY
+           !!paste0("Q", internal$last_qt, " Projection"),
+           Calculation = !!paste0("Q", internal$last_qt, " Calculation"),
+           !!paste0("Q", params$qt, " Manual Formula") := 
+             !!paste0("Q", internal$last_qt, " Manual Formula"),
+           Notes)
+}
+
+calcs <- calcs %>%
+  mutate(Calculation := ifelse(Calculation == "ytd", "YTD",
+                          tools::toTitleCase(Calculation))) %>%
   distinct()
 
 expend <- import(internal$file, which = "CurrentYearExpendituresActLevel") %>%
@@ -27,6 +51,7 @@ expend <- import(internal$file, which = "CurrentYearExpendituresActLevel") %>%
   # drop cols for future months since there is no data yet
   select(-one_of(c(month.name[7:12], month.name[1:6])[(internal$months.in + 1):12])) %>%
   set_colnames(rename_cols(.)) %>%
+  select(-carryforwardpurpose) %>%
   rename(`YTD Exp` = bapsytdexp) %>%
   filter(!is.na(`Agency ID`) & !is.na(`Service ID`)) %>% # remove total lines
   # can't join by 'Name' cols since sometimes the name changes from qt to qt
@@ -37,6 +62,8 @@ expend <- import(internal$file, which = "CurrentYearExpendituresActLevel") %>%
   mutate_at(vars(ends_with("ID")), as.character) %>%
   apply_standard_calcs(.) %>%
   make_proj_formulas(.) %>%
+  mutate(Calculation := ifelse(Calculation == "ytd", "YTD",
+                               tools::toTitleCase(Calculation))) %>%
   rename(!!internal$col.calc := Calculation,
          !!internal$col.proj := Projection,
          !!internal$col.surdef := `Surplus/Deficit`) %>%
@@ -72,8 +99,6 @@ x <- analysts %>%
   extract2("Agency ID") %>%
   # casino funds, parking funds, and Parking Authority need separate projections
   c(., 4311, 4376, "casino", "parking")
-
-create_analyst_dirs("quarterly_dist/", "Zhenya Ergova")
 
 agency_data <- map(x, subset_agency_data) %>%
   set_names(x) %>%

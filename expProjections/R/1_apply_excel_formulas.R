@@ -60,8 +60,7 @@ apply_excel_formulas <- function(agency_id, list) {
   } else {
     data$object <- apply_formula_class(data$object, get_col_names(data$object))
     
-    data$subobject <- data$subobject %>%
-      apply_formula_class(data$subobject, get_col_names(data$subobject))
+    data$subobject <- apply_formula_class(data$subobject, get_col_names(data$subobject))
   }
 
   return(data)

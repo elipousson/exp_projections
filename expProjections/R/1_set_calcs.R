@@ -12,7 +12,6 @@
 #' @importFrom dplyr mutate_at select
 #' @export
 
-
 import_analyst_calcs <- function() {
 
   file <- ifelse(
@@ -24,7 +23,7 @@ import_analyst_calcs <- function() {
 
   read_csv(file) %>%
     mutate_at(vars(ends_with("ID")), as.character) %>%
-    select(-ends_with("Name"), -`Total Budget`)
+    select(-ends_with("Name"))
 
 }
 
