@@ -74,14 +74,19 @@ prep_data <- function(df, type) {
     pivot_longer(starts_with("Q")) %>%
     separate(name, into = c("Quarter", "Type"), sep = " ", extra = "merge") %>%
     pivot_wider(names_from = "Type", values_from = "value") %>%
-    bind_total_row(total_col = "Quarter", total_name = "GRAND TOTAL", 
+    bind_total_row(total_col = "Quarter", total_name = "Avg.", 
                    group_col = c("FY21 Total Budget", "FY21 Actual", group)) %>%
-    mutate(Projection = ifelse(Quarter == "GRAND TOTAL", Projection / 3, Projection),
-           Difference = ifelse(Quarter == "GRAND TOTAL", Difference / 3, Difference),
+    mutate(Projection = ifelse(Quarter == "Avg.", Projection / 3, Projection),
+           Difference = ifelse(Quarter == "Avg.", Difference / 3, Difference),
            `Percent Change` = Difference / `FY21 Actual`)
   
+  if (type != "Citywide") {
+    df <- df %>%
+      arrange(!!sym(type))
+  }
+  
   check <- df %>%
-    filter(Quarter == "GRAND TOTAL") %>%
+    filter(Quarter == "Avg.") %>%
     summarize_at(vars(`FY21 Total Budget`, `FY21 Actual`), sum, na.rm = TRUE)
   
   assert_that(check$`FY21 Total Budget` == totals$`FY21 Total Budget`,
@@ -156,10 +161,6 @@ make_pyramid_chart(output, "Object")
 ```{r}
 output %>%
   mutate(`Percent Change` = scales::percent(`Percent Change`, accuracy = 0.01),
-         Projection = ifelse(Quarter == "GRAND TOTAL", paste(format_number(Projection, accuracy = 1L), "(avg)"),
-                             format_number(Projection, accuracy = 1L)),
-         Difference = ifelse(Quarter == "GRAND TOTAL", paste(format_number(Difference, accuracy = 1L), "(avg)"), 
-                             format_number(Difference, accuracy = 1L)),
          # using cell_spec instead of column_spec to set the background color bc the latter
          # colors the whole background, which is overwhelming
          `Percent Change` = cell_spec(`Percent Change`, 'html', color = "white",  bold = TRUE,
@@ -174,7 +175,7 @@ output %>%
                                         TRUE ~ "#EFB700"))) %>%
   format_table_numbers() %>%
   format_table(total = TRUE, align = c("l", "l", rep("r", "5")), escape = FALSE) %>%
-  row_spec(which(output$Quarter == "GRAND TOTAL"), bold = TRUE) %>%
+  row_spec(which(output$Quarter == "Avg."), bold = TRUE) %>%
   collapse_rows(1:4, latex_hline = "major", valign = "top") 
 ```
 
@@ -194,10 +195,6 @@ make_pyramid_chart(output, "Agency Name")
 ```{r agency table}
 output %>%
   mutate(`Percent Change` = scales::percent(`Percent Change`, accuracy = 0.01),
-         Projection = ifelse(Quarter == "GRAND TOTAL", paste(format_number(Projection, accuracy = 1L), "(avg)"),
-                             format_number(Projection, accuracy = 1L)),
-         Difference = ifelse(Quarter == "GRAND TOTAL", paste(format_number(Difference, accuracy = 1L), "(avg)"), 
-                             format_number(Difference, accuracy = 1L)),
          # using cell_spec instead of column_spec to set the background color bc the latter
          # colors the whole background, which is overwhelming
          `Percent Change` = cell_spec(`Percent Change`, 'html', color = "white",  bold = TRUE,
@@ -212,7 +209,7 @@ output %>%
                                         TRUE ~ "#EFB700"))) %>%
   format_table_numbers() %>%
   format_table(total = TRUE, align = c("l", "l", rep("r", "5")), escape = FALSE) %>%
-  row_spec(which(output$Quarter == "GRAND TOTAL"), bold = TRUE) %>%
+  row_spec(which(output$Quarter == "Avg."), bold = TRUE) %>%
   collapse_rows(1:4, latex_hline = "major", valign = "top") 
 
 ```
