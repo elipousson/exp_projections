@@ -101,11 +101,11 @@ make_pyramid_chart <- function(df, type) {
     geom_bar(stat = "identity") +
     # geom_text(aes(label = Quarter), size = 3, hjust = 1) +
     facet_wrap(as.formula(paste0("~`", type, "`")), ncol = 1) +
+    facet_wrap(as.formula(paste0("~`", type, "`")), ncol = 1, scales = "free") +
     scale_y_continuous(
       limits = c(-.25, 1.25), breaks = seq(-.25, .25, .05),
-      labels = c("Projected lower", "-20%", "-15%", "-10%", "-5%", "0%",
-                 "5%", "10%", "15%", "20%", "Projected higher"),
-      sec.axis = dup_axis(),
+      labels = c(str_wrap("Projected lower", width = 10), "-20%", "-15%", "-10%", "-5%", "0%",
+                 "5%", "10%", "15%", "20%", str_wrap("Projected higher", width = 10)),
       guide = guide_axis(angle = -45)) +
     geom_hline(yintercept = 0, color = "#69B34C", size = 1.2) +
     geom_hline(yintercept = c(-.04, .04), color = "#EFB700", size = 1.2) +
