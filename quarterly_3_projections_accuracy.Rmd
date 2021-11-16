@@ -11,7 +11,12 @@ library(kableExtra)
 library(ggplot2)
 library(assertthat)
 
-knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(
+	echo = FALSE,
+	message = FALSE,
+	warning = FALSE
+)
+
 last_year <- import("G:/Analyst Folders/Lillian/exp_projection_year/projections/quarterly_outputs/archive/FY21 Q3 Projection.xlsx")
 
 expend <- import("G:/Fiscal Years/Fiscal 2021/Projections Year/2. Monthly Expenditure Data/Month 12_June Projections/Expenditure 2021-06_Run_9.xlsx") %>%
@@ -53,6 +58,9 @@ projections <- expend %>%
     `Q3 Difference` = `Q3 Projection` - `FY21 Actual`) %>%
   ungroup() %>%
   unite(col = "Object",  c(`Object ID`, `Object Name`), sep = " ")
+
+bbmR::export_excel(projections, "FY21 Projections Accuracy",
+             paste0("FY21 Projections Accuracy - ", lubridate::today(),".xlsx"), "new")
 
 prep_data <- function(df, type) {
   
@@ -97,10 +105,8 @@ prep_data <- function(df, type) {
 
 make_pyramid_chart <- function(df, type) {
   df %>%
-    ggplot(aes(x = Quarter, y = `Percent Change`, color = `Percent Change`)) + 
+    ggplot(aes(x = Quarter, y = `Percent Change`)) + 
     geom_bar(stat = "identity") +
-    # geom_text(aes(label = Quarter), size = 3, hjust = 1) +
-    facet_wrap(as.formula(paste0("~`", type, "`")), ncol = 1) +
     facet_wrap(as.formula(paste0("~`", type, "`")), ncol = 1, scales = "free") +
     scale_y_continuous(
       limits = c(-.25, 1.25), breaks = seq(-.25, .25, .05),
@@ -150,7 +156,7 @@ output %>%
 
 Overall object accuracy is based on the percent change between the average of the `Projection` over all 3 quarters and the `FY21 Actual`.
 
-```{r object, fig.height=10, fig.width=7, fig.align='center'}
+```{r object, fig.height=14, fig.width=7, fig.align='center'}
 
 output <- prep_data(projections, "Object")
 
@@ -184,9 +190,10 @@ output %>%
 
 Overall agency accuracy is based on the percent change between the average of the `Projection` over all 3 quarters and the `FY21 Actual`.
 
-```{r agency, fig.height=50, fig.width=7, fig.align='center'}
+```{r agency, fig.height=70, fig.width=7, fig.align='center'}
 
-output <- prep_data(projections, "Agency Name")
+output <- prep_data(projections, "Agency Name") %>%
+  filter(`FY21 Total Budget` != 0 & `Projection` != 0) 
 
 make_pyramid_chart(output, "Agency Name")
 ```
