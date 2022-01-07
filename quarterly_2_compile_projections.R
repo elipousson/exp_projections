@@ -22,6 +22,7 @@ source("r/setup.R")
 internal <- setup_internal(proj = "quarterly")
 
 internal$analyst_files <- "G:/Fiscal Years/Fiscal 2022/Projections Year/4. Quarterly Projections/1st Quarter/4. Expenditure Backup"
+cols <- setup_cols(proj = "quarterly")
 
 if (is.na(params$compiled_edit)) {
   
@@ -56,7 +57,7 @@ if (is.na(params$compiled_edit)) {
     filter(!is.na(`Agency Name`) & !is.na(`Subobject Name`)) %>% # remove manual totals input by analysts
     mutate_if(is.numeric, replace_na, 0) %>% 
     # recalculate here, just in case formula got broken
-    mutate(!!internal$col.surdef := `Total Budget` - !!sym(internal$col.proj)) %>%
+    mutate(!!cols$sur_def := `Total Budget` - !!sym(cols$proj)) %>%
     left_join(objective)
   
   if (params$qt > 1) {
@@ -64,7 +65,7 @@ if (is.na(params$compiled_edit)) {
     mutate(!!paste0("Q", params$qt - 1, " Surplus/Deficit") := 
              `Total Budget` - !!sym(paste0("Q", params$qt - 1, " Projection")),
            !!paste0("Q", params$qt, " vs Q", params$qt - 1, " Projection Diff") := 
-                      !!sym(internal$col.surdef) - !!sym(paste0("Q", params$qt - 1, " Surplus/Deficit")))
+                      !!sym(cols$sur_def) - !!sym(paste0("Q", params$qt - 1, " Surplus/Deficit")))
   }
   
   export_analyst_calcs(compiled)
@@ -76,7 +77,7 @@ if (is.na(params$compiled_edit)) {
              `Fund ID`, `Fund Name`, `Object ID`, `Object Name`,
              `Subobject ID`, `Subobject Name`, `Activity ID`, `Activity Name`,
              `Pillar ID` = `Objective ID`, `Pillar Name` = `Objective Name`,
-             !!sym(internal$col.calc)) %>%
+             !!sym(cols$calc), !!sym(cols$manual), Notes) %>%
     summarize_if(is.numeric, sum, na.rm = TRUE) %>%
     ungroup()
   

@@ -30,25 +30,25 @@ export_projections_tab <- function(agency_id, list) {
         col_width = rep(15, ncol(data$line.item)), save = FALSE))
     dataValidation(
       excel,  1, rows = style$rows, type = "list", value = "Calcs!$A$2:$A$10",
-      cols = grep(internal$col.calc, names(data$line.item)))
+      cols = grep(cols$calc, names(data$line.item)))
     conditionalFormatting(
       excel, 1, rows = style$rows, style = style$negative,
       type = "expression", rule = "<0",
-      cols = grep(paste0(c(internal$col.proj, internal$col.surdef),
+      cols = grep(paste0(c(cols$proj, cols$sur_def),
                          collapse = "|"), names(data$line.item)))
     addStyle(excel, 1, style$cell.bg, rows = 1,
              gridExpand = TRUE, stack = FALSE,
-             cols = grep(paste0(c(paste0("^", internal$col.proj), paste0("^", internal$col.calc)),
+             cols = grep(paste0(c(paste0("^", cols$proj), paste0("^", cols$calc)),
                                 collapse = "|"), names(data$line.item)))
     addStyle(excel, 1, style$formula.num, rows = style$rows,
              gridExpand = TRUE, stack = FALSE,
-             cols = grep(paste0(c(internal$col.proj, internal$col.surdef),
+             cols = grep(paste0(c(cols$proj, cols$sur_def),
                                 collapse = "|"), names(data$line.item)))
     writeComment(
-      excel, 1, grep(paste0("^", internal$col.calc), names(data$line.item)), row = 1,
+      excel, 1, grep(paste0("^", cols$calc), names(data$line.item)), row = 1,
       createComment(
         paste("Please use the drop-down instead of typing. If 'Manual' is selected, you should overwrite the formula in the",
-              internal$col.proj, "column with your own calculation and then copy the manual formula over to the Manual Calculation column."),
+              cols$proj, "column with your own calculation and then copy the manual formula over to the Manual Calculation column."),
         visible = FALSE, width = 3, height = 6))
     writeComment(
       excel, 1, grep(paste0("^Q", params$qt, " Manual Formula"), names(data$line.item)), row = 1,
@@ -104,7 +104,7 @@ export_pivot_tabs <- function(agency_id, list) {
         paste0(paste0("Q", 1:4, collapse = "|"),
                "|", internal$month,
                "|Total Budget|YTD Exp|Projection Diff|",
-               internal$col.adopted, collapse = "|"),
+               cols$adopted, collapse = "|"),
         names(data[[tolower(type)]]))
 
       style$rows <- 2:(nrow(data[[tolower(type)]]) + 1)
@@ -116,7 +116,7 @@ export_pivot_tabs <- function(agency_id, list) {
       addStyle(
         excel, paste0("Pivot-", type), style$cell.bg, rows = 1,
         gridExpand = TRUE, stack = FALSE,
-        cols = grep(paste0(c(internal$col.proj, internal$col.surdef),
+        cols = grep(paste0(c(cols$proj, cols$sur_def),
                            collapse = "|"), names(data[[tolower(type)]])))
       addStyle( # total row
         excel, paste0("Pivot-", type), style$total, rows = max(style$rows),
@@ -125,7 +125,7 @@ export_pivot_tabs <- function(agency_id, list) {
       conditionalFormatting(
         excel, paste0("Pivot-", type), rows = style$rows, style = style$negative,
         type = "expression", rule = "<0",
-        cols = grep(paste0(c(internal$col.proj, internal$col.surdef),
+        cols = grep(paste0(c(cols$proj, cols$sur_def),
                            collapse = "|"), names(data[[tolower(type)]])))
       addStyle(excel, paste0("Pivot-", type), style$formula.num, cols = style$cols,
                rows = style$rows, gridExpand = TRUE, stack = TRUE)
