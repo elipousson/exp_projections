@@ -5,7 +5,19 @@ params <- list(qt = 1, # either the current qt (if quarterly) or most recent qt 
 
 ################################################################################
 
-source("r/setup.R")
+library(tidyverse)
+library(magrittr)
+library(lubridate)
+library(rio)
+library(openxlsx)
+library(bbmR)
+library(expProjections)
+
+# set number formatting for openxlsx
+options("openxlsx.numFmt" = "#,##0")
+
+analysts <- import("G:/Analyst Folders/Lillian/_ref/Analyst Assignments.xlsx") %>%
+  filter(Projections == TRUE)
 
 internal <- setup_internal(proj = "quarterly")
 # internal$months.in <- 2 # NO SEPT DATA FOR FY22 Q1 YET
@@ -29,6 +41,7 @@ if (params$qt == 1) {
              !!paste0("Q", internal$last_qt, " Projection"),
            !!paste0("FY", params$fy - 1, " Q", internal$last_qt, " Surplus/Deficit"),
            Calculation = !!paste0("Q", internal$last_qt, " Calculation"),
+           # transfer last qt's manual formula to this qt
            !!paste0("Q", params$qt, " Manual Formula") := 
              !!paste0("Q", internal$last_qt, " Manual Formula"),
            Notes)
@@ -51,7 +64,7 @@ calcs <- calcs %>%
 expend <- import(internal$file, which = "CurrentYearExpendituresActLevel") %>%
   mutate_at(vars(ends_with("ID")), as.character) %>%
   # drop cols for future months since there is no data yet
-  select(-one_of(c(month.name[7:12], month.name[1:6])[(internal$months.in + 1):12])) %>%
+  select(-one_of(c(month.name[7:12], month.name[1:6])[(internal$months_in + 1):12])) %>%
   set_colnames(rename_cols(.)) %>%
   select(-carryforwardpurpose) %>%
   rename(`YTD Exp` = bapsytdexp) %>%
