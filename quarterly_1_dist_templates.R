@@ -5,10 +5,24 @@ params <- list(qt = 1, # either the current qt (if quarterly) or most recent qt 
 
 ################################################################################
 
-source("r/setup.R")
+library(tidyverse)
+library(magrittr)
+library(lubridate)
+library(rio)
+library(openxlsx)
+library(bbmR)
+library(expProjections)
+
+# set number formatting for openxlsx
+options("openxlsx.numFmt" = "#,##0")
+
+analysts <- import("G:/Analyst Folders/Lillian/_ref/Analyst Assignments.xlsx") %>%
+  filter(Projections == TRUE)
 
 internal <- setup_internal(proj = "quarterly")
 # internal$months.in <- 2 # NO SEPT DATA FOR FY22 Q1 YET
+
+cols <- setup_cols(proj = "quarterly")
 
 calcs <- import_analyst_calcs()
 
@@ -23,10 +37,11 @@ if (params$qt == 1) {
            !!paste0("FY", params$fy - 1, " Q", params$qt, " Projection") := 
              !!paste0("Q", params$qt, " Projection"),
            !!paste0("FY", params$fy - 1, " Q", params$qt, " Surplus/Deficit"),
-           !!paste0("FY", params$fy - 1, " Q", internal$last_qt, " Projection") := 
+           !!cols$proj_last := 
              !!paste0("Q", internal$last_qt, " Projection"),
            !!paste0("FY", params$fy - 1, " Q", internal$last_qt, " Surplus/Deficit"),
            Calculation = !!paste0("Q", internal$last_qt, " Calculation"),
+           # transfer last qt's manual formula to this qt
            !!paste0("Q", params$qt, " Manual Formula") := 
              !!paste0("Q", internal$last_qt, " Manual Formula"),
            Notes)
@@ -49,7 +64,7 @@ calcs <- calcs %>%
 expend <- import(internal$file, which = "CurrentYearExpendituresActLevel") %>%
   mutate_at(vars(ends_with("ID")), as.character) %>%
   # drop cols for future months since there is no data yet
-  select(-one_of(c(month.name[7:12], month.name[1:6])[(internal$months.in + 1):12])) %>%
+  select(-one_of(c(month.name[7:12], month.name[1:6])[(internal$months_in + 1):12])) %>%
   set_colnames(rename_cols(.)) %>%
   select(-carryforwardpurpose) %>%
   rename(`YTD Exp` = bapsytdexp) %>%
@@ -64,9 +79,9 @@ expend <- import(internal$file, which = "CurrentYearExpendituresActLevel") %>%
   make_proj_formulas(.) %>%
   mutate(Calculation := ifelse(Calculation == "ytd", "YTD",
                                tools::toTitleCase(Calculation))) %>%
-  rename(!!internal$col.calc := Calculation,
-         !!internal$col.proj := Projection,
-         !!internal$col.surdef := `Surplus/Deficit`) %>%
+  rename(!!cols$calc := Calculation,
+         !!cols$proj := Projection,
+         !!cols$sur_def := `Surplus/Deficit`) %>%
   combine_agencies() %>%
   arrange(`Agency ID`, `Fund ID`)
 
@@ -89,8 +104,8 @@ program.surdef <- expend %>%
   make_pivots("SurDef")
 
 calc.list <- expend %>%
-  distinct(!!sym(internal$col.calc)) %>%
-  filter(!is.na(!!sym(internal$col.calc)) & !!sym(internal$col.calc) != "")
+  distinct(!!sym(cols$calc)) %>%
+  filter(!is.na(!!sym(cols$calc)) & !!sym(cols$calc) != "")
 
 # Export ####
 

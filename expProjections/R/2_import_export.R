@@ -98,8 +98,8 @@ run_summary_reports <- function(df) {
   # Add 'significant difference' col for easy spotting of errors
   reports$subobject <- reports$subobject %>%
     mutate(`Signif Diff` = ifelse(
-      (!!sym(internal$col.proj) / `Total Budget` <= .8 | !!sym(internal$col.proj) / `Total Budget` >= 1.2) &
-        `Total Budget` - !!sym(internal$col.proj) > 20000, TRUE, FALSE))
+      (!!sym(cols$proj) / `Total Budget` <= .8 | !!sym(cols$proj) / `Total Budget` >= 1.2) &
+        `Total Budget` - !!sym(cols$proj) > 20000, TRUE, FALSE))
 
   reports$agency <- reports$agency %>%
     select(`Agency Name`, `Total Budget`,

@@ -9,23 +9,36 @@ params <- list(
   fy = 22,
   qt = 1,
   # NA if there is no edited compiled file
-  compiled_edit = NA)
+  compiled_edit = NA,
+  analyst_files = "G:/Fiscal Years/Fiscal 2022/Projections Year/4. Quarterly Projections/1st Quarter/4. Expenditure Backup")
 
 ################################################################################
 
+library(tidyverse)
+library(magrittr)
+library(lubridate)
+library(rio)
 library(knitr)
 library(kableExtra)
+library(openxlsx)
+library(bbmR)
 library(expProjections)
+library(plotly)
+trace("orca", edit = TRUE)
 
-source("r/setup.R")
+# set number formatting for openxlsx
+options("openxlsx.numFmt" = "#,##0")
+
+analysts <- import("G:/Analyst Folders/Lillian/_ref/Analyst Assignments.xlsx") %>%
+  filter(Projections == TRUE)
 
 internal <- setup_internal(proj = "quarterly")
 
-internal$analyst_files <- "G:/Fiscal Years/Fiscal 2022/Projections Year/4. Quarterly Projections/1st Quarter/4. Expenditure Backup"
+cols <- setup_cols(proj = "quarterly")
 
 if (is.na(params$compiled_edit)) {
   
-  data <- list.files(internal$analyst_files, pattern = paste0("^[^~].*Q", params$qt ,".*xlsx"),
+  data <- list.files(params$analyst_files, pattern = paste0("^[^~].*Q", params$qt ,".*xlsx"),
                      full.names = TRUE, recursive = TRUE) %>%
     import_analyst_files()
   
@@ -44,19 +57,12 @@ if (is.na(params$compiled_edit)) {
   # missing.cols <- map(data, function (x) { TRUE %in% grepl("Notes", names(x)) }) %>%
   #   unlist()
   
-  # objective <- query_db("PLANNINGYEAR23", "program") %>%
-  #   select(`Service ID` = ID, `Pillar ID` = `OBJECTIVE_ID`) %>%
-  #   collect() %>%
-  #   left_join(query_db("PLANNINGYEAR23", "objective") %>%
-  #               select(`Pillar ID` = ID, `Pillar Name` = NAME) %>%
-  #               collect())
-  
   compiled <- data %>%
     bind_rows(.id = "File")  %>%
     filter(!is.na(`Agency Name`) & !is.na(`Subobject Name`)) %>% # remove manual totals input by analysts
     mutate_if(is.numeric, replace_na, 0) %>% 
     # recalculate here, just in case formula got broken
-    mutate(!!internal$col.surdef := `Total Budget` - !!sym(internal$col.proj)) %>%
+    mutate(!!cols$sur_def := `Total Budget` - !!sym(cols$proj)) %>%
     left_join(objective)
   
   if (params$qt > 1) {
@@ -64,7 +70,7 @@ if (is.na(params$compiled_edit)) {
     mutate(!!paste0("Q", params$qt - 1, " Surplus/Deficit") := 
              `Total Budget` - !!sym(paste0("Q", params$qt - 1, " Projection")),
            !!paste0("Q", params$qt, " vs Q", params$qt - 1, " Projection Diff") := 
-                      !!sym(internal$col.surdef) - !!sym(paste0("Q", params$qt - 1, " Surplus/Deficit")))
+                      !!sym(cols$sur_def) - !!sym(paste0("Q", params$qt - 1, " Surplus/Deficit")))
   }
   
   export_analyst_calcs(compiled)
@@ -76,7 +82,7 @@ if (is.na(params$compiled_edit)) {
              `Fund ID`, `Fund Name`, `Object ID`, `Object Name`,
              `Subobject ID`, `Subobject Name`, `Activity ID`, `Activity Name`,
              `Pillar ID` = `Objective ID`, `Pillar Name` = `Objective Name`,
-             !!sym(internal$col.calc)) %>%
+             !!sym(cols$calc), !!sym(cols$manual), Notes) %>%
     summarize_if(is.numeric, sum, na.rm = TRUE) %>%
     ungroup()
   
@@ -90,7 +96,7 @@ if (is.na(params$compiled_edit)) {
     rename_factor_object() %>%
     arrange(`Agency ID`, `Service ID`, `Fund ID`, `Object ID`, `Subobject ID`) %>% 
     select(`Agency ID`:`Pillar Name`, `YTD Exp`, `Total Budget`, 
-           starts_with("Q1"), starts_with("Q2"), starts_with("Q3"))
+           starts_with("Q1"), starts_with("Q2"), starts_with("Q3"), Notes)
   
   run_summary_reports(compiled)
   
@@ -130,9 +136,6 @@ if (nrow(totals) > 0) {
 # Export ####
 chiefs_report <- calc_chiefs_report(compiled) %>%
   calc_chiefs_report_totals()
-
-library(plotly)
-trace("orca", edit = TRUE)
 
 rmarkdown::render('r/Chiefs_Report.Rmd',
                   output_file = paste0("FY", params$fy,

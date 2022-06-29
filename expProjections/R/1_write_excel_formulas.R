@@ -20,20 +20,19 @@ make_proj_formulas <- function(df, manual = "zero") {
     mutate(
       Projection =
         paste0(
-          'IF([', internal$col.calc,
-          ']="At Budget",[Total Budget], IF([', internal$col.calc,
-          ']="YTD", [YTD Exp], IF([', internal$col.calc,
-          ']="No Funds Expended", 0, IF([', internal$col.calc,
-          ']="Straight", ([YTD Exp]/', internal$months.in, ')*12, IF([', internal$col.calc,
-          ']="YTD & Encumbrance", [YTD Exp] + [Total Encumbrance], IF([', internal$col.calc,
+          'IF([', cols$calc,
+          ']="At Budget",[Total Budget], IF([', cols$calc,
+          ']="YTD", [YTD Exp], IF([', cols$calc,
+          ']="No Funds Expended", 0, IF([', cols$calc,
+          ']="Straight", ([YTD Exp]/', internal$months.in, ')*12, IF([', cols$calc,
+          ']="YTD & Encumbrance", [YTD Exp] + [Total Encumbrance], IF([', cols$calc,
           ']="Manual",',
           switch(manual, "zero" = "0,",
-                 "last" = paste0('[', internal$col.lastproj, '],')),
-          'IF([', internal$col.calc,
+                 "last" = paste0('[', cols$proj_last, '],')),
+          'IF([', cols$calc,
           ']="Straight & Encumbrance", (([YTD Exp]/', internal$months.in,
-          ')*12) + [Total Encumbrance], IF([', internal$col.calc,
-          ']="Seasonal",', internal$seasonal,',0))))))))'),
-      `Surplus/Deficit` = paste0("[Total Budget] - [", internal$col.proj, "]"))
+          ')*12) + [Total Encumbrance])))))))'),
+      `Surplus/Deficit` = paste0("[Total Budget] - [", cols$proj, "]"))
 
 }
 
@@ -68,8 +67,8 @@ make_pivots <- function(df, type, proj = "quarterly") {
       total_proj_sheet_column(paste0("FY", params$fy, " Adopted")) %>%
       total_proj_sheet_column("Total Budget") %>%
       total_proj_sheet_column("YTD Exp") %>%
-      total_proj_sheet_column(internal$col.proj) %>%
-      total_proj_sheet_column(internal$col.surdef)
+      total_proj_sheet_column(cols$proj) %>%
+      total_proj_sheet_column(cols$sur_def)
 
     df <- df %>%
       mutate(
@@ -82,11 +81,11 @@ make_pivots <- function(df, type, proj = "quarterly") {
         `YTD Exp` =
           paste0("SUMIFS(projection[YTD Exp],projection[", type, " ID],[", type,
                  " ID],projection[Fund ID],[Fund ID])"),
-        !!internal$col.proj := paste0(
-          "SUMIFS(projection[", !!internal$col.proj,
+        !!cols$proj := paste0(
+          "SUMIFS(projection[", !!cols$proj,
           "],projection[", type, " ID],[", type, " ID],projection[Fund ID],[Fund ID])"),
-        !!internal$col.surdef := paste0(
-          "SUMIFS(projection[", !!internal$col.surdef,
+        !!cols$sur_def := paste0(
+          "SUMIFS(projection[", !!cols$sur_def,
           "],projection[", type, " ID],[", type, " ID],projection[Fund ID],[Fund ID])"))
 
     if (proj == "monthly") {
@@ -116,23 +115,23 @@ make_pivots <- function(df, type, proj = "quarterly") {
     if (proj == "monthly") {
       df <- df %>%
         mutate(`Projection Diff` =
-                 paste0("[", internal$col.proj, "]-[",
+                 paste0("[", cols$proj, "]-[",
                         paste0("Q", params$qt, " Projection]")))
       totals <- totals %>%
         mutate(`Projection Diff` =
-                 paste0("[", internal$col.proj, "]-[",
+                 paste0("[", cols$proj, "]-[",
                         paste0("Q", params$qt, " Projection]")))
 
     } else {
       if (params$qt != 1) {
         df <- df %>%
           mutate(`Projection Diff` =
-                   paste0("[", internal$col.proj, "]-[",
+                   paste0("[", cols$proj, "]-[",
                           paste0("Q", params$qt - 1, " Projection]")))
 
         totals <- totals %>%
           mutate(`Projection Diff` =
-                   paste0("[", internal$col.proj, "]-[",
+                   paste0("[", cols$proj, "]-[",
                           paste0("Q", params$qt - 1, " Projection]")))
       }
     }
@@ -143,7 +142,7 @@ make_pivots <- function(df, type, proj = "quarterly") {
 
     totals_bind <- tibble(
       Object = paste("Object", 0:9),
-      Formula = paste0("SUMIFS(projection[", internal$col.surdef,
+      Formula = paste0("SUMIFS(projection[", cols$sur_def,
                        "], projection[Object ID],", 0:9, ")")) %>%
       pivot_wider(names_from = Object, values_from = Formula) %>%
       slice(rep(1:n(), each = nrow(totals))) %>%
@@ -157,7 +156,7 @@ make_pivots <- function(df, type, proj = "quarterly") {
     obj_bind <- tibble(
       Object = paste("Object", 0:9),
       Formula = paste0(
-        "SUMIFS(projection[", internal$col.surdef,
+        "SUMIFS(projection[", cols$sur_def,
         "], projection[Fund ID],[Fund ID], projection[Service ID],[Service ID],projection[Object ID],", 0:9, ")")) %>%
       pivot_wider(names_from = Object, values_from = Formula) %>%
       slice(rep(1:n(), each = nrow(df)))

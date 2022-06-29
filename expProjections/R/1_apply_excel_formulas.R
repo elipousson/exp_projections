@@ -38,14 +38,14 @@ apply_excel_formulas <- function(agency_id, list) {
 
   # formula just wasn't picking up when done for larger df
   data$line.item <- data$line.item %>%
-    apply_formula_class(c(internal$col.proj, internal$col.surdef))
+    apply_formula_class(c(cols$proj, cols$sur_def))
 
   data$program.surdef <- data$program.surdef %>%
     apply_formula_class(paste("Object", 0:9))
   
   get_col_names <- function(df) {
     df %>%
-      select(matches(paste0("Q", 1:4, collapse = "|")), !!internal$col.adopted, 
+      select(matches(paste0("Q", 1:4, collapse = "|")), !!cols$adopted, 
              `Total Budget`, `YTD Exp`) %>%
       names(.)
   }
