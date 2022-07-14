@@ -7,13 +7,17 @@
 
 params <- list(
   fy = 22,
-  qt = 1,
+  qt = 3,
   # NA if there is no edited compiled file
   compiled_edit = NA,
-  analyst_files = "G:/Fiscal Years/Fiscal 2022/Projections Year/4. Quarterly Projections/1st Quarter/4. Expenditure Backup")
+  #update the file path for the current quarter
+  analyst_files = "G:/Fiscal Years/Fiscal 2022/Projections Year/4. Quarterly Projections/3rd Quarter/4. Expenditure Backup")
 
 ################################################################################
+#May need to install tinytex if not already installed
 
+#.libPaths("C:/Users/sara.brumfield2/.conda/envs/bbmr/Lib/R/library")
+.libPaths("C:/Users/sara.brumfield2/OneDrive - City Of Baltimore/Documents/r_library")
 library(tidyverse)
 library(magrittr)
 library(lubridate)
@@ -21,15 +25,27 @@ library(rio)
 library(knitr)
 library(kableExtra)
 library(openxlsx)
-library(bbmR)
-library(expProjections)
 library(plotly)
+library(tinytex)
+
+# .libPaths("G:/Data/r_library")
+# library(bbmR)
+# library(expProjections)
+# library(bookHelpers)
+devtools::load_all("G:/Analyst Folders/Sara Brumfield/bbmR")
+devtools::load_all("G:/Budget Publications/automation/0_data_prep/bookHelpers")
+devtools::load_all("G:/Analyst Folders/Sara Brumfield/exp_projection_year/projections/expProjections/")
+
 trace("orca", edit = TRUE)
 
+# Load data ====================================================================
 # set number formatting for openxlsx
 options("openxlsx.numFmt" = "#,##0")
 
-analysts <- import("G:/Analyst Folders/Lillian/_ref/Analyst Assignments.xlsx") %>%
+# Multi-year Data
+hist <- import("G:/Fiscal Years/Historical Data/Multi-Year Data/Multi-Year Actuals (FY12-FY22) - BAPS-Actuals.xlsx")
+
+analysts <- import("G:/Analyst Folders/Sara Brumfield/_ref/Analyst Assignments.xlsx") %>%
   filter(Projections == TRUE)
 
 internal <- setup_internal(proj = "quarterly")
@@ -63,7 +79,9 @@ if (is.na(params$compiled_edit)) {
     mutate_if(is.numeric, replace_na, 0) %>% 
     # recalculate here, just in case formula got broken
     mutate(!!cols$sur_def := `Total Budget` - !!sym(cols$proj)) %>%
-    left_join(objective)
+    left_join(objective) 
+  
+  compiled$`Objective Name`[is.na(compiled$`Objective Name`)] <- "Other"
   
   if (params$qt > 1) {
     compiled <- compiled %>%
@@ -105,6 +123,7 @@ if (is.na(params$compiled_edit)) {
   compiled <- import(params$compiled_edit)
 }
 
+
 # Validation ####
 
 # which agency files are missing?
@@ -133,10 +152,41 @@ if (nrow(totals) > 0) {
   export_excel(totals, "Mismatched Totals", internal$output, "existing") 
 }
 
-# Export ####
+# chiefs report ####
+## Add Objective Data to historical data
+#objective id needs to be numeric to match historical data
+hist$`Service ID` <- as.character(hist$`Program Id`)
+
+hist_data <- select(hist, -c(`Objective Id`, `Objective Name`)) %>%
+  filter(`Fiscal Year` > 2019) %>%
+  left_join(objective, by = c("Service ID" = "Service ID"))
+
+hist_20 <- hist_data%>%
+  filter(`Fiscal Year`==2020) %>%
+  group_by(`Objective Name`) %>%
+  summarise(`FY20 Actual` = sum(`BAPS Actual`))
+
+hist_21 <- hist_data%>%
+  filter(`Fiscal Year`==2021) %>%
+  group_by(`Objective Name`) %>%
+  summarise(`FY21 Actual` = sum(`BAPS Actual`))
+
+curr_fy <- compiled %>%
+  select(`Pillar Name`, `YTD Exp`, `Total Budget`, `Q3 Projection`) %>%
+  group_by(`Pillar Name`) %>%
+  summarize_if(is.numeric, sum)
+
+chiefs_table <- curr_fy %>%
+  left_join(hist_21, by = c("Pillar Name" = "Objective Name")) %>%
+  left_join(hist_20, by = c("Pillar Name" = "Objective Name"))  %>%
+  select(`Pillar Name`, `FY20 Actual`, `FY21 Actual`, `Total Budget`, `YTD Exp`, `Q3 Projection`) #%>%
+  # rename(`Pillar Name` = `Objective Name`)
+  
 chiefs_report <- calc_chiefs_report(compiled) %>%
   calc_chiefs_report_totals()
 
+# Export ##############################################################
+#change Chiefs_Report.Rmd to correct quarter
 rmarkdown::render('r/Chiefs_Report.Rmd',
                   output_file = paste0("FY", params$fy,
                                        " Q", params$qt, " Chiefs Report.pdf"),

@@ -1,22 +1,24 @@
 # Distribute projection file templates
 
-params <- list(qt = 1, # either the current qt (if quarterly) or most recent qt (if monthly)
+params <- list(qt = 3, # either the current qt (if quarterly) or most recent qt (if monthly)
                fy = 22) 
 
 ################################################################################
-
+.libPaths("C:/Users/sara.brumfield2/.conda/envs/bbmr/Lib/R/library")
 library(tidyverse)
 library(magrittr)
 library(lubridate)
 library(rio)
 library(openxlsx)
+
+.libPaths("G:/Data/r_library")
 library(bbmR)
 library(expProjections)
 
 # set number formatting for openxlsx
 options("openxlsx.numFmt" = "#,##0")
 
-analysts <- import("G:/Analyst Folders/Lillian/_ref/Analyst Assignments.xlsx") %>%
+analysts <- import("G:/Analyst Folders/Sara Brumfield/_ref/Analyst Assignments.xlsx") %>%
   filter(Projections == TRUE)
 
 internal <- setup_internal(proj = "quarterly")
