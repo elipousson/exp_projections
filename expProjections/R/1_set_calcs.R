@@ -34,10 +34,34 @@ import_analyst_calcs <- function() {
 #'
 #' @return A df
 #'
-#' @author Lillian Nguyen
+#' @author Sara Brumfield
 #'
 #' @import dplyr
 #' @export
+#' 
+
+qtr_cols <- function(expend) {if (params$qt == 1) {
+df <- expend %>% rowwise() %>%
+  mutate(`Q1 Actuals` = sum(`June Actuals`, `July Actuals`, `August Actuals`, `September Actuals`, na.rm = TRUE),
+         `Q1 Obligations` = sum(`June Obligations`, `July Obligations`, `August Obligations`, `September Obligations`, na.rm = TRUE),
+         `Q1 Budget` = Budget / 4,
+         `Q1 Variance` = `Q1 Budget` - sum(`Q1 Actuals`, `Q1 Obligations`)) %>%
+  relocate(c(`Q1 Actuals`, `Q1 Obligations`, `Q1 Budget`, `Q1 Variance`), .after = `Total Spent`)
+} else if (params$qt == 2) {
+  df <- expend %>% rowwise() %>%
+    mutate(`Q2 Actuals` = sum(`October Actuals`, `November Actuals`, `December Actuals`, na.rm = TRUE),
+           `Q2 Obligations` = sum(`October Obligations`, `November Obligations`, `December Obligations`,  na.rm = TRUE),
+           `Q2 Budget` = Budget / 4,
+           `Q2 Variance` = `Q2 Budget` - sum(`Q2 Actuals`, `Q2 Obligations`)) %>%
+    relocate(c(`Q2 Actuals`, `Q2 Obligations`, `Q2 Budget`, `Q2 Variance`), .after = `Total Spent`)
+} else if (params$qt == 3) {
+  df <- expend %>% rowwise() %>%
+    mutate(`Q3 Actuals` = sum(`January Actuals`, `February Actuals`, `March Actuals`, na.rm = TRUE),
+           `Q3 Obligations` = sum(`January Obligations`, `February Obligations`, `March Obligations`,  na.rm = TRUE),
+           `Q3 Budget` = Budget / 4,
+           `Q3 Variance` = `Q3 Budget` - sum(`Q3 Actuals`, `Q3 Obligations`)) %>%
+    relocate(c(`Q3 Actuals`, `Q3 Obligations`, `Q3 Budget`, `Q3 Variance`), .after = `Total Spent`)
+}}
 
 apply_standard_calcs <- function(df) {
 
@@ -56,4 +80,10 @@ apply_standard_calcs <- function(df) {
         `Subobject ID` == "115" & params$qt == 1 ~ "At budget",
         `Subobject ID` == "115" & params$qt > 1 ~ "YTD",
         TRUE ~ Calculation))
+}
+
+apply_calc_list <- function(df) {
+  df <- df %>% 
+    mutate(Calculation = list(list("No Funds Expended", "At Budget", "Manual", "Straight", "Straight & Encumbrance", "YTD", "YTD & Encumbrance", "Seasonal"))) %>%
+    relocate(Calculation, .before = `June Actuals`)
 }
