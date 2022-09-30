@@ -19,7 +19,7 @@ source("expProjections/R/1_apply_excel_formulas.R")
 # set number formatting for openxlsx
 options("openxlsx.numFmt" = "#,##0")
 
-analysts <- import("G:/Analyst Folders/Lillian/_ref/Analyst Assignments.xlsx") %>%
+analysts <- import("G:/Analyst Folders/Sara Brumfield/_ref/Analyst Assignments.xlsx") %>%
   filter(Projections == TRUE)
 
 # setup for column names and calculations
