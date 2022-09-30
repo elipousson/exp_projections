@@ -1,7 +1,7 @@
 Package: expProjections
 Type: Package
 Title: Quarterly and monthly expenditure projections
-Version: 2021.11.01
+Version: 2021.12.08
 Authors@R: person("Lillian", "Nguyen", email = "lillian.nguyen@baltimorecity.gov", role = c("aut", "cre"))
 Maintainer: Lillian Nguyen <lillian.nguyen@baltimorecity.gov>
 Description: This package provides functions to generate templates for projections by agency and to compile edited templates into final reports. 
