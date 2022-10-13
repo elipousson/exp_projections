@@ -1,3 +1,5 @@
+# Distribute projection file templates from Workday 
+
 ################################################################################
 .libPaths("C:/Users/sara.brumfield2/OneDrive - City Of Baltimore/Documents/r_library")
 source("r/setup.R")
@@ -39,7 +41,9 @@ options("openxlsx.numFmt" = "#,##0")
 ##distribution prep ==============
 params <- list(qtr = 1,
                fy = 23,
-               fiscal_month = 3)
+               fiscal_month = 3,
+               calendar_month = 9,
+               calendar_year = 22)
 
 cols <- list(calc = paste0("Q", params$qtr, " Calculation"),
              proj = paste0("Q", params$qtr, " Projection"),
@@ -50,9 +54,9 @@ analysts <- import("G:/Analyst Folders/Sara Brumfield/_ref/Analyst Assignments.x
   filter(Projections == TRUE)
 
 #read in data ===============
-input <- import(paste0("FY", params$fy, " Q", params$qt, " Actuals.xlsx"), skip = 7) %>%
-  filter(`Cost Center` != "Total") %>%
-  select(-`...8`, -Grant, -`Special Purpose`) %>%
+input <- import(paste0("FY", params$fy, " Q", params$qt, " Actuals.xlsx"), skip = 8) %>%
+  filter(Fund == "1001 General Fund") %>%
+  select(-`...8`) %>%
   mutate(`Workday Agency ID` = str_extract(Agency, pattern = "(AGC\\d{4})"),
          `Fund ID`= as.numeric(substr(Fund, 1, 4))) %>%
   ##manually adjust columns by date for now
@@ -83,7 +87,6 @@ input <- import(paste0("FY", params$fy, " Q", params$qt, " Actuals.xlsx"), skip 
          # `May Obligations` = `Obligations...45`,
          # `Jun Obligations` = `Obligations...48`
          ) %>%
-  filter(`Fund` == "1001 General Fund") %>%
   mutate(
          `Q1 Actuals` = as.numeric(`Jul Actuals`) + as.numeric(`Aug Actuals`) + as.numeric(`Sep Actuals`) + as.numeric(`Jun 22 Actuals`),
          `Q1 Obligations` = as.numeric(`Jul Obligations`) + as.numeric(`Aug Obligations`) + as.numeric(`Sep Obligations`) + as.numeric(`Jun 22 Obligations`)
@@ -150,11 +153,13 @@ hist_mapped <- input %>% left_join(fy22, by = c("Cost Center", "Spend Category",
   relocate(`FY22 Total Budget`, .after = `FY22 Adopted`) %>%
   relocate(`FY22 Actual`, .after = `FY22 Adopted`) %>%
   relocate(`FY21 Adopted`, .after = `Spend Category`) %>%
-  relocate(`FY21 Actual`, .after = `FY21 Adopted`)
+  relocate(`FY21 Actual`, .after = `FY21 Adopted`) %>%
+  mutate(Calculation = "")
 
 ##numbers check
 #workday total
 gf_total <- sum(input$Budget, na.rm = TRUE)
+gf_spent <- sum(input$`Total Spent`, na.rm = TRUE)
 #fy22 appropriation file totals
 gf_bpfs_22 <- sum(fy22$`FY22 Total Budget`, na.rm = TRUE)
 gf_bpfs_22_adopted <- sum(fy22$`FY22 Adopted`, na.rm = TRUE)
@@ -165,9 +170,11 @@ gf_2022 <- 1992751000
 #join check
 gf_22_adopted <- sum(hist_mapped$`FY22 Adopted`, na.rm = TRUE)
 join_23_budget <- sum(hist_mapped$`FY23 Budget`, na.rm = TRUE)
+join_23_actual <- sum(hist_mapped$`FY23 YTD Spent`, na.rm = TRUE)
 
-ifelse(gf_2022 == gf_bpfs_22_adopted, print("FY22 numbers OK."), print("FY22 numbers not OK."))
-ifelse(gf_total == join_23_budget, print("FY23 join OK."), print(paste0("FY23 join not OK. Off by ", gf_total - join_23_budget)))
+ifelse(gf_2022 == gf_bpfs_22_adopted, print("FY22 budget OK."), print("FY22 budget not OK."))
+ifelse(gf_total == join_23_budget, print("FY23 budget join OK."), print(paste0("FY23 budget join not OK. Off by ", gf_total - join_23_budget)))
+ifelse(gf_spent == join_23_actual, print("FY23 actuals join OK."), print(paste0("FY23 actuals join not OK. Off by ", gf_spent - join_23_actual)))
 
 # x <- cc %>% right_join(hist, by = c("Program_ID" = "program_id",
 #                                              "Activity_ID" = "activity_id")) %>%
@@ -209,7 +216,7 @@ ifelse(gf_total == join_23_budget, print("FY23 join OK."), print(paste0("FY23 jo
 #   pivot_wider(names_from = `Fiscal_Year`, values_from = c(`adopted`, `actual`))
 
 
-#pull in previous quarters if != qtr 1=================
+#pull in previous quarters if != qtr 1 =================
 
 
 #add analyst calcs
@@ -231,14 +238,15 @@ import_analyst_calcs <- function() {
 }
 calcs <- import_analyst_calcs()
 
-calcs_join_fields <- input %>% select("Agency", "Service", "Cost Center", "Spend Category") %>%
-  mutate(` ` = "")
-colnames(calcs_join_fields) <- c("Agency", "Service", "Cost Center", "Spend Category", "Calculation")
+#prep cols for calcs ================
+# calcs_join_fields <- input %>% select("Agency", "Service", "Cost Center", "Fund", "Grant", "Special Purpose", "Spend Category") %>%
+#   mutate(` ` = "")
+# colnames(calcs_join_fields) <- c("Agency", "Service", "Cost Center", "Fund", "Grant", "Special Purpose", "Spend Category", "Calculation")
+# 
+#   
+# join <- left_join(hist_mapped, calcs_join_fields, by = c("Agency", "Service", "Cost Center", "Fund", "Grant", "Special Purpose", "Spend Category"))
 
-  
-join <- left_join(hist_mapped, calcs_join_fields, by = c("Agency", "Service", "Cost Center", "Spend Category"))
-
-#add excel formula for calculations==================
+#add excel formula for calculations ==================
 #update col names for new FY
 make_proj_formulas <- function(df, manual = "zero") {
   
@@ -268,7 +276,7 @@ make_proj_formulas <- function(df, manual = "zero") {
   
 }
 
-output <- join %>%
+output <- hist_mapped %>%
   make_proj_formulas() %>%
   rename(!!cols$calc := Calculation,
          !!cols$proj := Projection,
@@ -276,12 +284,20 @@ output <- join %>%
   mutate(`Notes` = "") %>%
   relocate(`Workday Agency ID`, .after = `Notes`)
 
+##numbers check
+join_23_act <- sum(output$`FY23 YTD Spent`, na.rm = TRUE)
+join_23_bud <- sum(output$`FY23 Budget`, na.rm = TRUE)
+
+ifelse(join_23_actual == join_23_act, print("FY23 actuals numbers OK."), print("FY23 actuals numbers not OK."))
+ifelse(join_23_budget == join_23_bud, print("FY23 budget join OK."), print(paste0("FY23 budget join not OK. Off by ", gf_total - join_23_bud)))
+
+
 calc.list <- data.frame("Calculations" = c("No Funds Expended", "At Budget", "YTD", "Straight", "YTD & Encumbrance", "Manual", "Straight & Encumbrance"))
 
 # output <- output %>%
 #   apply_formula_class(c("Projection", "Surplus/Deficit"))
 
-#export=====================
+#export =====================
 #divide by agency and analyst
 
 x <- analysts %>%
@@ -316,7 +332,8 @@ export_workday <- function(agency_id, list) {
       apply_formula_class(c(cols$proj, cols$surdef))
     
     style <- list(cell.bg = createStyle(fgFill = "pink", border = "TopBottomLeftRight",
-                                        borderColour = "black", textDecoration = "bold"),
+                                        borderColour = "black", textDecoration = "bold",
+                                        wrapText = TRUE),
                   formula.num = createStyle(numFmt = "#,##0"),
                   negative = createStyle(fontColour = "#9C0006"))
 
