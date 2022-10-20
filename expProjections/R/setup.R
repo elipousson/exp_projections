@@ -82,6 +82,7 @@ setup_cols <- function(proj = "quarterly") {
   
   if (proj == "quarterly") {
     
+    l$budget <- paste0("FY", params$fy, " Budget")
     l$proj <- paste0("Q", params$qt, " Projection")
     l$sur_def <- paste0("Q", params$qt, " Surplus/Deficit")
     

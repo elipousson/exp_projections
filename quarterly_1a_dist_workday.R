@@ -47,73 +47,16 @@ params <- list(qtr = 1,
 
 cols <- list(calc = paste0("Q", params$qtr, " Calculation"),
              proj = paste0("Q", params$qtr, " Projection"),
-             surdef = paste0("Q", params$qtr, " Surplus/Deficit"))
+             surdef = paste0("Q", params$qtr, " Surplus/Deficit"),
+             budget = paste0("FY", params$fy, " Budget"))
 
 #analyst assignments
 analysts <- import("G:/Analyst Folders/Sara Brumfield/_ref/Analyst Assignments.xlsx") %>%
   filter(Projections == TRUE)
 
 #read in data ===============
-input <- import(paste0("FY", params$fy, " Q", params$qt, " Actuals.xlsx"), skip = 8) %>%
-  filter(Fund == "1001 General Fund") %>%
-  select(-`...8`) %>%
-  mutate(`Workday Agency ID` = str_extract(Agency, pattern = "(AGC\\d{4})"),
-         `Fund ID`= as.numeric(substr(Fund, 1, 4))) %>%
-  ##manually adjust columns by date for now
-  rename(`Jun 22 Actuals` = `Actuals...11`,
-          `Jul Actuals` = `Actuals...14`,
-         `Aug Actuals` =  `Actuals...17`,
-         `Sep Actuals` =  `Actuals...20`,
-         # `Oct Actuals` = `Actual...23`,
-         # `Nov Actuals` = `Actual...26`,
-         # `Dec Actuals` =  `Actual...29`,
-         # `Jan Actuals` = `Actual...32`,
-         # `Feb Actuals` =  `Actual...35`,
-         # `Mar Actuals` =  `Actual...38`,
-         # `Apr Actuals` = `Actual...41`,
-         # `May Actuals` = `Actual...44`,
-         # `Jun Actuals` = `Actual...47`,
-         `Jun 22 Obligations` = `Obligations...12`,
-         `Jul Obligations` = `Obligations...15`,
-         `Aug Obligations` =  `Obligations...18`,
-         `Sep Obligations` =  `Obligations...21`
-         # `Oct Obligations` = `Obligations...24`,
-         # `Nov Obligations` = `Obligations...27`,
-         # `Dec Obligations` =  `Obligations...30`,
-         # `Jan Obligations` = `Obligations...33`,
-         # `Feb Obligations` =  `Obligations...36`,
-         # `Mar Obligations` =  `Obligations...39`,
-         # `Apr Obligations` = `Obligations...42`,
-         # `May Obligations` = `Obligations...45`,
-         # `Jun Obligations` = `Obligations...48`
-         ) %>%
-  mutate(
-         `Q1 Actuals` = as.numeric(`Jul Actuals`) + as.numeric(`Aug Actuals`) + as.numeric(`Sep Actuals`) + as.numeric(`Jun 22 Actuals`),
-         `Q1 Obligations` = as.numeric(`Jul Obligations`) + as.numeric(`Aug Obligations`) + as.numeric(`Sep Obligations`) + as.numeric(`Jun 22 Obligations`)
-         # `Q2 Actuals` = as.numeric(`Oct Actuals`) + as.numeric(`Nov Actuals`) + as.numeric(`Dec Actuals`),
-         # `Q3 Actuals` = as.numeric(`Jan Actuals`) + as.numeric(`Feb Actuals`) + as.numeric(`Mar Actuals`),
-         # `Q4 Actuals` = as.numeric(`Apr Actuals`) + as.numeric(`May Actuals`) + as.numeric(`Jun Actuals`)
-         ) %>%
-  select(-matches("(\\...)")) %>%
-  relocate(`Q1 Actuals`, .after = `Total Spent`) %>%
-  relocate(`Q1 Obligations`, .after = `Q1 Actuals`)
-
-#read in past budget data ====
-# hist <- query_db("PLANNINGYEAR24", "BUDGETS_N_ACTUALS_CLEAN_DF") %>% collect() %>%
-#   filter(Fiscal_Year %in% c(2021, 2022)) %>%
-#   mutate(agency_id = as.numeric(agency_id),
-#          program_id = as.numeric(program_id),
-#          activity_id = as.numeric(activity_id),
-#          subactivity_id = as.numeric(subactivity_id),
-#          fund_id = as.numeric(fund_id),
-#          detailed_fund_id = as.numeric(detailed_fund_id),
-#          object_id = as.numeric(object_id),
-#          subobject_id = as.numeric(subobject_id))
-
-#cost center
-# cc <- query_db("PLANNINGYEAR24", "COST_CENTER_LOAD") %>% collect() %>%
-#   mutate(Program_ID = as.numeric(Program_ID),
-#          Activity_ID = as.numeric(Activity_ID))
+file_name <- paste0("FY", params$fy, " Q", params$qt, " Actuals.xlsx")
+input <- import_workday(file_name) 
 
 #fy22 actuals
 fy22_actuals <- import("G:/Fiscal Years/Fiscal 2022/Projections Year/2. Monthly Expenditure Data/Month 12_June Projections/Expenditure 2022-06_Run7.xlsx", which = "CurrentYearExpendituresActLevel") %>%
@@ -147,19 +90,21 @@ fy22 <- fy22_adopted %>%
 ##join historic and current data
 hist_mapped <- input %>% left_join(fy22, by = c("Cost Center", "Spend Category", "Fund ID")) %>%
   select(-`Fund ID`) %>%
-  rename(`FY23 Budget` = Budget,
-         `FY23 YTD Spent` = `Total Spent`) %>%
+  rename(`FY23 Budget` = Budget) %>%
   relocate(`FY22 Adopted`, .after = `Spend Category`) %>%
   relocate(`FY22 Total Budget`, .after = `FY22 Adopted`) %>%
   relocate(`FY22 Actual`, .after = `FY22 Adopted`) %>%
   relocate(`FY21 Adopted`, .after = `Spend Category`) %>%
   relocate(`FY21 Actual`, .after = `FY21 Adopted`) %>%
+  relocate(`FY23 Budget`, .after = `FY22 Total Budget`) %>%
+  relocate(`YTD Actuals + Obligations`, .after = `FY23 Budget`) %>%
+  relocate(`YTD Actuals`, .after = `YTD Actuals + Obligations`) %>%
   mutate(Calculation = "")
 
 ##numbers check
 #workday total
 gf_total <- sum(input$Budget, na.rm = TRUE)
-gf_spent <- sum(input$`Total Spent`, na.rm = TRUE)
+gf_spent <- sum(input$`YTD Actuals + Obligations`, na.rm = TRUE)
 #fy22 appropriation file totals
 gf_bpfs_22 <- sum(fy22$`FY22 Total Budget`, na.rm = TRUE)
 gf_bpfs_22_adopted <- sum(fy22$`FY22 Adopted`, na.rm = TRUE)
@@ -170,18 +115,12 @@ gf_2022 <- 1992751000
 #join check
 gf_22_adopted <- sum(hist_mapped$`FY22 Adopted`, na.rm = TRUE)
 join_23_budget <- sum(hist_mapped$`FY23 Budget`, na.rm = TRUE)
-join_23_actual <- sum(hist_mapped$`FY23 YTD Spent`, na.rm = TRUE)
+join_23_actual <- sum(hist_mapped$`YTD Actuals + Obligations`, na.rm = TRUE)
 
 ifelse(gf_2022 == gf_bpfs_22_adopted, print("FY22 budget OK."), print("FY22 budget not OK."))
 ifelse(gf_total == join_23_budget, print("FY23 budget join OK."), print(paste0("FY23 budget join not OK. Off by ", gf_total - join_23_budget)))
 ifelse(gf_spent == join_23_actual, print("FY23 actuals join OK."), print(paste0("FY23 actuals join not OK. Off by ", gf_spent - join_23_actual)))
 
-# x <- cc %>% right_join(hist, by = c("Program_ID" = "program_id",
-#                                              "Activity_ID" = "activity_id")) %>%
-#   unite(key, Fiscal_Year, agency_id, Program_ID, Activity_ID, object_id, subobject_id, fund_id, detailed_fund_id, subactivity_id) %>%
-#   mutate(key = as.character(key))
-
-# y = x %>% filter(duplicated(x$key))
 
 #xwalk with Workday ======
 # xwalk <- import("G:/Fiscal Years/Fiscal 2023/Projections Year/1. July 1 Prepwork/Appropriation File/Fiscal 2023 Appropriation File_With_Positions_WK_Accounts.xlsx",
@@ -260,17 +199,17 @@ make_proj_formulas <- function(df, manual = "zero") {
           'IF([', cols$calc,
           ']="At Budget",[FY23 Budget], 
         IF([', cols$calc,
-          ']="YTD", [FY23 YTD Spent],
+          ']="YTD", [YTD Actuals + Obligations],
         IF([', cols$calc,
           ']="No Funds Expended", 0, 
         IF([', cols$calc,
-          ']="Straight", ([FY23 YTD Spent]/', params$fiscal_month, ')*12, 
+          ']="Straight", ([Q', params$qtr, ' Actuals]/', params$fiscal_month, ')*12, 
         IF([', cols$calc,
-          ']="YTD & Encumbrance", [FY23 YTD Spent] + [Q1 Obligations], 
+          ']="YTD & Encumbrance", [YTD Actuals + Obligations], 
         IF([', cols$calc,
           ']="Manual", 0, 
         IF([', cols$calc,
-          ']="Straight & Encumbrance", (([FY23 YTD Spent]/', params$fiscal_month,
+          ']="Straight & Encumbrance", (([Q', params$qtr, ' Actuals]/', params$fiscal_month,
           ')*12) + [Q1 Obligations])))))))'),
       `Surplus/Deficit` = paste0("[FY23 Budget] - [", cols$proj, "]"))
   
@@ -285,7 +224,7 @@ output <- hist_mapped %>%
   relocate(`Workday Agency ID`, .after = `Notes`)
 
 ##numbers check
-join_23_act <- sum(output$`FY23 YTD Spent`, na.rm = TRUE)
+join_23_act <- sum(output$`YTD Actuals + Obligations`, na.rm = TRUE)
 join_23_bud <- sum(output$`FY23 Budget`, na.rm = TRUE)
 
 ifelse(join_23_actual == join_23_act, print("FY23 actuals numbers OK."), print("FY23 actuals numbers not OK."))
@@ -293,9 +232,6 @@ ifelse(join_23_budget == join_23_bud, print("FY23 budget join OK."), print(paste
 
 
 calc.list <- data.frame("Calculations" = c("No Funds Expended", "At Budget", "YTD", "Straight", "YTD & Encumbrance", "Manual", "Straight & Encumbrance"))
-
-# output <- output %>%
-#   apply_formula_class(c("Projection", "Surplus/Deficit"))
 
 #export =====================
 #divide by agency and analyst
@@ -322,60 +258,61 @@ subset_agency_data <- function(agency_id) {
 agency_data <- map(x, subset_agency_data) %>%
   set_names(x)
 
-
-export_workday <- function(agency_id, list) {
-    agency_id <- as.character(agency_id)
-    agency_name <- analysts$`Agency Name - Cleaned`[analysts$`Workday Agency ID`==agency_id]
-    file_path <- paste0(
-      "G:/Agencies/", agency_name, "/File Distribution/FY", params$fy, " Q", params$qtr, " - ", agency_name, ".xlsx")
-    data <- list[[agency_id]]$line.item %>%
-      apply_formula_class(c(cols$proj, cols$surdef))
-    
-    style <- list(cell.bg = createStyle(fgFill = "pink", border = "TopBottomLeftRight",
-                                        borderColour = "black", textDecoration = "bold",
-                                        wrapText = TRUE),
-                  formula.num = createStyle(numFmt = "#,##0"),
-                  negative = createStyle(fontColour = "#9C0006"))
-
-    style$rows <- 2:nrow(data)
-
-    wb<- createWorkbook()
-    addWorksheet(wb, "Projections by Spend Category")
-    addWorksheet(wb, "Calcs", visible = FALSE)
-    writeDataTable(wb, 1, x = data)
-    writeDataTable(wb, 2, x = calc.list)
-    
-    dataValidation(
-      wb = wb,
-      sheet = 1,
-      rows = 2:nrow(data),
-      type = "list",
-      value = "Calcs!$A$2:$A$8",
-      cols = grep(cols$calc, names(data)))
-
-    conditionalFormatting(
-      wb, 1, rows = style$rows, style = style$negative,
-      type = "expression", rule = "<0",
-      cols = grep(paste0(c(cols$calc, "Projection", "Surplus/Deficit"),
-                         collapse = "|"), names(data)))
-    
-    addStyle(wb, 1, style$cell.bg, rows = 1,
-             gridExpand = TRUE, stack = FALSE,
-             cols = grep(paste0(c(cols$calc, "Projection", "Surplus/Deficit"),
-                                collapse = "|"), names(data)))
-    
-    addStyle(wb, 1, style$formula.num, rows = style$rows,
-             gridExpand = TRUE, stack = FALSE,
-             cols = grep(paste0(c(cols$calc, "Projection", "Surplus/Deficit"),
-                                collapse = "|"), names(data)))
-
-
-    saveWorkbook(wb, file_path, overwrite = TRUE)
-
-  message(agency_name, " projections tab exported.")
-  }
-
-setwd("G:/Analyst Folders/Sara Brumfield/exp_projection_year/0_projections/quarterly_dist/")
+# setwd("G:/Analyst Folders/Sara Brumfield/exp_projection_year/0_projections/quarterly_dist/")
 map(x, export_workday, agency_data)
+setwd("G:/Analyst Folders/Sara Brumfield/exp_projection_year/0_projections/")
 
+#export individual files ===============
+export_workday <- function(agency_id, list) {
+  agency_id <- as.character(agency_id)
+  agency_name <- analysts$`Agency Name - Cleaned`[analysts$`Workday Agency ID`==agency_id]
+  file_path <- paste0(
+    "G:/Agencies/", agency_name, "/File Distribution/FY", params$fy, " Q", params$qtr, " - ", agency_name, ".xlsx")
+  data <- list[[agency_id]]$line.item %>%
+    apply_formula_class(c(cols$proj, cols$surdef)) 
+  
+  style <- list(cell.bg = createStyle(fgFill = "pink", border = "TopBottomLeftRight",
+                                      borderColour = "black", textDecoration = "bold",
+                                      wrapText = TRUE),
+                formula.num = createStyle(numFmt = "#,##0"),
+                negative = createStyle(fontColour = "#9C0006"))
+  
+  style$rows <- 2:nrow(data)
+  
+  wb<- createWorkbook()
+  addWorksheet(wb, "Projections by Spend Category")
+  addWorksheet(wb, "Calcs", visible = FALSE)
+  writeDataTable(wb, 1, x = data)
+  writeDataTable(wb, 2, x = calc.list)
+  
+  dataValidation(
+    wb = wb,
+    sheet = 1,
+    rows = 2:nrow(data),
+    type = "list",
+    value = "Calcs!$A$2:$A$8",
+    cols = grep(cols$calc, names(data)))
+  
+  conditionalFormatting(
+    wb, 1, rows = style$rows, style = style$negative,
+    type = "expression", rule = "<0",
+    cols = grep(paste0(c(cols$calc, "Projection", "Surplus/Deficit"),
+                       collapse = "|"), names(data)))
+  
+  addStyle(wb, 1, style$cell.bg, rows = 1,
+           gridExpand = TRUE, stack = FALSE,
+           cols = grep(paste0(c(cols$calc, "Projection", "Surplus/Deficit"),
+                              collapse = "|"), names(data)))
+  
+  addStyle(wb, 1, style$formula.num, rows = style$rows,
+           gridExpand = TRUE, stack = FALSE,
+           cols = grep(paste0(c(cols$calc, "Projection", "Surplus/Deficit"),
+                              collapse = "|"), names(data)))
+  
+  
+  saveWorkbook(wb, file_path, overwrite = TRUE)
+  
+  message(agency_name, " projections tab exported.")
+}
 
+export_workday("AGC5500", agency_data)

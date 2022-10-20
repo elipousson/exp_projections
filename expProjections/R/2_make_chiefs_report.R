@@ -37,6 +37,7 @@ calc_chiefs_report <- function(df) {
     ungroup()
 }
 
+
 #' Calc Chief's report totals
 #'
 #' Add total row to Chief's report
@@ -67,6 +68,72 @@ calc_chiefs_report_totals <- function(df) {
     arrange(`Agency Name`, Service != "AGENCY TOTAL", Service) %>%
     ungroup() %>%
     select(-`Agency Name`, -`Service ID`) %>%
+    bind_rows(total.grand) %>%
+    mutate_if(is.numeric, scales::dollar, prefix = "", negative_parens = TRUE)
+}
+#' Calc Chief's report in Workday values
+#'
+#' Reorganize data to show agency surpluses/deficits by Spend Category
+#'
+#' @param df
+#'
+#' @return A df
+#'
+#' @author Sara Brumfield
+#'
+#' @import dplyr
+#' @export
+
+calc_chiefs_report_workday <- function(df) {
+  
+  chiefs_report <- df %>%
+    # keeping `Agency` and `Service` only for ordering / joining purposes
+    group_by(Agency, Service, `Spend Category`) %>%
+    summarize(!!internal$col.proj := sum(!!sym(internal$col.proj), na.rm = TRUE)) %>%
+    pivot_wider(id_cols = c(`Agency`, Service),
+                names_from = `Spend Category`, values_from = !!sym(internal$col.proj)) %>%
+    mutate_all(replace_na, 0) %>%
+    # tack on surplus/def summarized by agency and Service
+    full_join(df %>%
+                group_by(Agency, Service) %>%
+                summarize_at(
+                  vars(!!"FY23 Budget", !!internal$col.proj, !!internal$col.surdef),
+                  sum, na.rm = TRUE),
+              by = c("Agency", "Service")) %>%
+    # remove any rows that are 0 across the board
+    filter_at(vars(`Transfers`:!!internal$col.surdef), any_vars(. != 0)) %>%
+    ungroup()
+}
+
+#' Calc Chief's report totals from Workday values
+#'
+#' Add total row to Chief's report
+#'
+#' @param df
+#'
+#' @return A df
+#'
+#' @author Sara Brumfield
+#'
+#' @import dplyr
+#' @export
+
+calc_chiefs_report_totals <- function(df) {
+  
+  total.grand <- df %>%
+    ungroup() %>%
+    summarize_at(vars(c(`Transfers`:!!internal$col.surdef)), sum, na.rm = TRUE) %>%
+    mutate(Agency = "Grand Total", Service = "Grand Total")
+  
+  total.sub <- df %>%
+    group_by(Agency) %>%
+    summarize_at(vars(c(`Transfers`:!!internal$col.surdef)), sum, na.rm = TRUE) %>%
+    mutate(Service = "Agency Total")
+  
+  df <- df %>%
+    bind_rows(total.sub) %>%
+    arrange(`Agency`, Service != "Agency Total", Service) %>%
+    ungroup() %>%
     bind_rows(total.grand) %>%
     mutate_if(is.numeric, scales::dollar, prefix = "", negative_parens = TRUE)
 }
