@@ -199,7 +199,7 @@ make_proj_formulas <- function(df, manual = "zero") {
           'IF([', cols$calc,
           ']="At Budget",[FY23 Budget], 
         IF([', cols$calc,
-          ']="YTD", [YTD Actuals + Obligations],
+          ']="YTD", [YTD Actuals],
         IF([', cols$calc,
           ']="No Funds Expended", 0, 
         IF([', cols$calc,

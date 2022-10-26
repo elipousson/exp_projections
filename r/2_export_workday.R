@@ -57,6 +57,17 @@ export_workday <- function(agency_id, list) {
            cols = grep(paste0(c(cols$calc, "Projection", "Surplus/Deficit"),
                               collapse = "|"), names(data)))
   
+  writeComment(
+    excel, sheet = 1, col = "YTD Actuals", row = 1,
+    createComment(
+      paste("Includes values posted in June assigned to FY23."),
+      visible = FALSE, width = 3, height = 6))
+  
+  writeComment(
+    excel, sheet = 1, col = "Q1 Actuals", row = 1,
+    createComment(
+      paste("Includes values posted in June assigned to FY23."),
+      visible = FALSE, width = 3, height = 6))
   
   saveWorkbook(wb, file_path, overwrite = TRUE)
   

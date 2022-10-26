@@ -37,6 +37,47 @@ calc_chiefs_report <- function(df) {
     ungroup()
 }
 
+#' Calc Chief's report
+#'
+#' Reorganize data to show agency surpluses/deficits by Spend Category
+#'
+#' @param df
+#'
+#' @return A df
+#'
+#' @author Sara Brumfield
+#'
+#' @import dplyr
+#' @export
+
+calc_chiefs_report_workday <- function(df) {
+  
+  ledger_summary <- import("G:/Analyst Folders/Sara Brumfield/_ref/Ledger Summary to Spend Category Map.xlsx") %>%
+    select(`Spend Category`, `Ledger Summary`)
+  
+  data <- df %>%
+    left_join(ledger_summary, by = "Spend Category")
+    
+  chiefs_report <- data %>%
+    group_by(Agency,  Service, `Ledger Summary`) %>%
+    summarize(!!internal$col.proj := sum(!!sym(internal$col.proj), na.rm = TRUE)) %>%
+    mutate(`Ledger Summary` = case_when(is.na(`Ledger Summary`) ~ "Blank",
+                                        TRUE ~ `Ledger Summary`)) %>%
+    pivot_wider(id_cols = c(`Agency`, Service), names_from = `Ledger Summary`,
+                values_from = !!sym(internal$col.proj)) %>%
+    # tack on surplus/def summarized by agency and Service
+    full_join(df %>%
+                group_by(Agency, Service) %>%
+                summarize_at(
+                  vars(!!paste0("FY", params$fy, " Budget"), !!internal$col.proj, !!internal$col.surdef),
+                  sum, na.rm = TRUE),
+              by = c("Agency", "Service")) %>%
+    mutate_if(is.numeric, replace_na, 0) %>%
+    # remove any rows that are 0 across the board
+    filter_at(vars(!!internal$col.proj:!!internal$col.surdef), any_vars(. != 0)) %>%
+    ungroup()
+}
+
 
 #' Calc Chief's report totals
 #'
@@ -71,39 +112,6 @@ calc_chiefs_report_totals <- function(df) {
     bind_rows(total.grand) %>%
     mutate_if(is.numeric, scales::dollar, prefix = "", negative_parens = TRUE)
 }
-#' Calc Chief's report in Workday values
-#'
-#' Reorganize data to show agency surpluses/deficits by Spend Category
-#'
-#' @param df
-#'
-#' @return A df
-#'
-#' @author Sara Brumfield
-#'
-#' @import dplyr
-#' @export
-
-calc_chiefs_report_workday <- function(df) {
-  
-  chiefs_report <- df %>%
-    # keeping `Agency` and `Service` only for ordering / joining purposes
-    group_by(Agency, Service, `Spend Category`) %>%
-    summarize(!!internal$col.proj := sum(!!sym(internal$col.proj), na.rm = TRUE)) %>%
-    pivot_wider(id_cols = c(`Agency`, Service),
-                names_from = `Spend Category`, values_from = !!sym(internal$col.proj)) %>%
-    mutate_all(replace_na, 0) %>%
-    # tack on surplus/def summarized by agency and Service
-    full_join(df %>%
-                group_by(Agency, Service) %>%
-                summarize_at(
-                  vars(!!"FY23 Budget", !!internal$col.proj, !!internal$col.surdef),
-                  sum, na.rm = TRUE),
-              by = c("Agency", "Service")) %>%
-    # remove any rows that are 0 across the board
-    filter_at(vars(`Transfers`:!!internal$col.surdef), any_vars(. != 0)) %>%
-    ungroup()
-}
 
 #' Calc Chief's report totals from Workday values
 #'
@@ -118,16 +126,16 @@ calc_chiefs_report_workday <- function(df) {
 #' @import dplyr
 #' @export
 
-calc_chiefs_report_totals <- function(df) {
+calc_chiefs_report_totals_workday <- function(df) {
   
   total.grand <- df %>%
     ungroup() %>%
-    summarize_at(vars(c(`Transfers`:!!internal$col.surdef)), sum, na.rm = TRUE) %>%
+    summarize_at(vars(c(!!paste0("FY", params$fy, " Budget"):!!internal$col.surdef)), sum, na.rm = TRUE) %>%
     mutate(Agency = "Grand Total", Service = "Grand Total")
   
   total.sub <- df %>%
     group_by(Agency) %>%
-    summarize_at(vars(c(`Transfers`:!!internal$col.surdef)), sum, na.rm = TRUE) %>%
+    summarize_at(vars(c(!!paste0("FY", params$fy, " Budget"):!!internal$col.surdef)), sum, na.rm = TRUE) %>%
     mutate(Service = "Agency Total")
   
   df <- df %>%

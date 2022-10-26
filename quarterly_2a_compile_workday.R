@@ -12,6 +12,9 @@ params <- list(
 .libPaths("C:/Users/sara.brumfield2/OneDrive - City Of Baltimore/Documents/r_library")
 library(knitr)
 library(kableExtra)
+library(viridis)
+library(viridisLite)
+library(scales)
 source("expProjections/R/1_apply_excel_formulas.R")
 
 source("expProjections/R/1_export.R")
@@ -23,13 +26,20 @@ source("expProjections/R/2_make_chiefs_report.R")
 source("expProjections/R/2_rename_factor_object.R")
 source("expProjections/R/1_apply_excel_formulas.R")
 source("r/setup.R")
+source("G:/Budget Publications/automation/0_data_prep/bookHelpers/R/plots.R")
+source("G:/Budget Publications/automation/0_data_prep/bookHelpers/R/formatting.R")
 
 internal <- setup_internal(proj = "quarterly")
 
 internal$analyst_files <- if (params$qtr == 1) {
-  paste0("G:/Fiscal Years/Fiscal 20", params$calendar_year, "/Projections Year/4. Quarterly Projections/", params$qtr, "st Quarter/4. Expenditure Backup")} else if (params$qtr == 2) {
-    paste0("G:/Fiscal Years/Fiscal 20", params$calendar_year, "/Projections Year/4. Quarterly Projections/", params$qtr, "nd Quarter/4. Expenditure Backup")} else if (params$qtr == 3) {
-      paste0("G:/Fiscal Years/Fiscal 20", params$calendar_year, "/Projections Year/4. Quarterly Projections/", params$qtr, "rd Quarter/4. Expenditure Backup")}
+  paste0("G:/Fiscal Years/Fiscal 20", params$fy, "/Projections Year/4. Quarterly Projections/", params$qtr, "st Quarter/4. Expenditure Backup")} else if (params$qtr == 2) {
+    paste0("G:/Fiscal Years/Fiscal 20", params$fy, "/Projections Year/4. Quarterly Projections/", params$qtr, "nd Quarter/4. Expenditure Backup")} else if (params$qtr == 3) {
+      paste0("G:/Fiscal Years/Fiscal 20", params$fy, "/Projections Year/4. Quarterly Projections/", params$qtr, "rd Quarter/4. Expenditure Backup")}
+
+cols <- list(calc = paste0("Q", params$qtr, " Calculation"),
+             proj = paste0("Q", params$qtr, " Projection"),
+             surdef = paste0("Q", params$qtr, " Surplus/Deficit"),
+             budget = paste0("FY", params$fy, " Budget"))
 
 ##read in data ===============
 if (is.na(params$compiled_edit)) {
@@ -45,7 +55,7 @@ if (is.na(params$compiled_edit)) {
     mutate_if(is.numeric, replace_na, 0) %>% 
     # recalculate here, just in case formula got broken
     #make dynamic col name
-    mutate(!!internal$col.surdef := !!paste0("FY", params$fy, " Budget") - !!sym(internal$col.proj))
+    mutate(!!sym(internal$col.surdef) := !!sym(paste0("FY", params$fy, " Budget")) - !!sym(internal$col.proj))
   
   if (params$qt > 1) {
     compiled <- compiled %>%
@@ -58,7 +68,7 @@ if (is.na(params$compiled_edit)) {
   #save analyst calcs for next qtr
   export_analyst_calcs_workday(compiled)
   
-  compiled <- compiled %>%
+  df <- compiled %>%
     # ... but keep only general fund here bc we generally only project for GF
     filter(`Fund` == "1001 General Fund") %>%
     group_by(Agency, Service, `Cost Center`, Fund, Grant, 
@@ -72,7 +82,7 @@ if (is.na(params$compiled_edit)) {
   #     mutate(`Q1 Projection` = ifelse(`Subobject ID` == "161", `YTD Exp` * 2, `Q1 Projection`))
   # }
   
-  compiled <- compiled %>%
+  df <- df %>%
     # combine_agencies() %>%
     # rename_factor_object() %>%
     arrange(Agency, Service, `Cost Center`, Fund, Grant, 
@@ -80,7 +90,7 @@ if (is.na(params$compiled_edit)) {
     select(`Agency`:`Spend Category`, `YTD Actuals`, !!paste0("FY", params$fy, " Budget"), 
            starts_with("Q1"), starts_with("Q2"), starts_with("Q3"))
   
-  run_summary_reports_workday(compiled)
+  run_summary_reports_workday(df)
   
   
 } else {
@@ -117,7 +127,7 @@ if (nrow(totals) > 0) {
 }
 
 # Export ####
-chiefs_report <- calc_chiefs_report_workday(compiled) %>%
+chiefs_report <- calc_chiefs_report_workday(df) %>%
   calc_chiefs_report_totals_workday()
 
 library(plotly)

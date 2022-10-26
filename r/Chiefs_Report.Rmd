@@ -44,41 +44,84 @@ options(knitr.table.format = "latex",
 ```
 
 ```{r }
-kable(chiefs_report, booktabs = TRUE, longtable = TRUE, align = c('l', 'l', rep('r', 12))) %>%
+kable(chiefs_report, booktabs = TRUE, longtable = TRUE, align = c('l', 'l', rep('r', 8))) %>%
   collapse_rows(1:2, row_group_label_position = 'stack', longtable_clean_cut = FALSE,
               latex_hline = "major", headers_to_remove = 1:2) %>%
   row_spec(0,  bold = TRUE) %>%
   row_spec(nrow(chiefs_report) - 1,  hline_after = TRUE) %>%
-  row_spec(c(nrow(chiefs_report), which(chiefs_report$Service == "AGENCY TOTAL")), bold = TRUE) %>%
-  column_spec(2, "20em") %>%
-  column_spec(4:15, "5.1em") %>%
-  kable_styling(latex_options = c("repeat_header"), font_size = 7) 
+  row_spec(c(nrow(chiefs_report), which(chiefs_report$Service == "Agency Total")), bold = TRUE) %>%
+  column_spec(2, "2.5in") %>%
+  column_spec(3:10, ".75in") %>%
+  kable_styling(latex_options = c("repeat_header"), font_size = 8) 
 
 ```
 
 \newpage
 
-### By Pillar
+### By Ledger Account Summary
 
 ```{r, fig.align = "center"}
 
-pillar <- compiled %>%
-  mutate(`Pillar Name` = ifelse(is.na(`Pillar Name`), "Other", `Pillar Name`)) %>%
-  group_by(`Pillar Name`) %>%
-  summarize_if(is.numeric, sum)
+ledger_summary <- import("G:/Analyst Folders/Sara Brumfield/_ref/Ledger Summary to Spend Category Map.xlsx") %>%
+select(`Spend Category`, `Ledger Summary`)
 
-pillar %>%
-  bookHelpers::format_table_numbers() %>%
-  kable(booktabs = TRUE, longtable = TRUE, align = c('l', rep('r', 4))) %>%
+ledger <- compiled %>%
+  select(`Spend Category`, !!sym(paste0("FY", params$fy-2, " Actual")), !!sym(paste0("FY", params$fy-1, " Actual")),
+         !!sym(paste0("FY", params$fy, " Budget")), !!sym(internal$col.proj), !!sym(internal$col.surdef)) %>%
+  left_join(ledger_summary, by = "Spend Category") %>%
+  group_by(`Ledger Summary`) %>%
+  summarize_if(is.numeric, sum) %>%
+  mutate(`Ledger Summary` = case_when(is.na(`Ledger Summary`) ~ "Blank",
+                                      TRUE ~ `Ledger Summary`))
+
+ledger %>%
+  format_table_numbers() %>%
+  kable(booktabs = TRUE, longtable = TRUE, align = c('l', rep('r', 5))) %>%
   row_spec(0,  bold = TRUE) %>%
-  kable_styling(latex_options = c("repeat_header"), font_size = 7) 
+  kable_styling(latex_options = c("repeat_header"), font_size = 10)
 
-pillar %>%
-  select(label = `Pillar Name`, `Total Budget`, `Q1 Projection`, `Q1 Surplus/Deficit`) %>%
-  arrange(`Pillar Name`) %>%
-  bookHelpers::format_plot(
-    "bar_group", set_scale = "m", set_min_y = 0, set_max_y = 1000000000,  margin_b = 50, 
-    bar_anno_col = "Q1 Surplus/Deficit", bar_anno_word_positive = " surplus", bar_anno_word_negative = " deficit") %>%
-  bookHelpers::export_plotly("pillars", width = "950", height = "500")
+ledger %>%
+  select(label = `Ledger Summary`, !!sym(internal$col.proj), !!sym(internal$col.surdef)) %>%
+  format_plot(
+    "bar_group", set_scale = "m", bar_anno_col = internal$col.surdef, bar_anno_y = 1.25,
+    bar_anno_word_positive = " surplus", bar_anno_word_negative = " deficit") %>%
+    orca(file = paste0("quarterly_outputs/plots/", "ledger", ".pdf"), width = "800", height = "400")
+
+include_graphics(paste0("quarterly_outputs/plots/", "ledger", ".pdf"))
+
+# ledger %>%
+#   select(label = `Pillar Name`, `Total Budget`, `Q1 Projection`, `Q1 Surplus/Deficit`) %>%
+#   arrange(`Pillar Name`) %>%
+#   bookHelpers::format_plot(
+#     "bar_group", set_scale = "m", set_min_y = 0, set_max_y = 1000000000,  margin_b = 50,
+#     bar_anno_col = "Q1 Surplus/Deficit", bar_anno_word_positive = " surplus", bar_anno_word_negative = " deficit") %>%
+#   bookHelpers::export_plotly("pillars", width = "950", height = "500")
+
+```
+
+<!-- \newpage -->
+
+<!-- ### By Pillar -->
+
+```{r, fig.align = "center"}
+# 
+# pillar <- compiled %>%
+#   mutate(`Pillar Name` = ifelse(is.na(`Pillar Name`), "Other", `Pillar Name`)) %>%
+#   group_by(`Pillar Name`) %>%
+#   summarize_if(is.numeric, sum)
+# 
+# pillar %>%
+#   bookHelpers::format_table_numbers() %>%
+#   kable(booktabs = TRUE, longtable = TRUE, align = c('l', rep('r', 4))) %>%
+#   row_spec(0,  bold = TRUE) %>%
+#   kable_styling(latex_options = c("repeat_header"), font_size = 7) 
+# 
+# pillar %>%
+#   select(label = `Pillar Name`, `Total Budget`, `Q1 Projection`, `Q1 Surplus/Deficit`) %>%
+#   arrange(`Pillar Name`) %>%
+#   bookHelpers::format_plot(
+#     "bar_group", set_scale = "m", set_min_y = 0, set_max_y = 1000000000,  margin_b = 50, 
+#     bar_anno_col = "Q1 Surplus/Deficit", bar_anno_word_positive = " surplus", bar_anno_word_negative = " deficit") %>%
+#   bookHelpers::export_plotly("pillars", width = "950", height = "500")
 
 ```
