@@ -14,7 +14,7 @@ library(openxlsx)
 
 devtools::load_all("G:/Analyst Folders/Sara Brumfield/bbmR")
 devtools::load_all("G:/Budget Publications/automation/0_data_prep/bookHelpers")
-devtools::load_all("G:/Analyst Folders/Sara Brumfield/exp_projection_year/projections/expProjections/")
+devtools::load_all("G:/Analyst Folders/Sara Brumfield/exp_projection_year/0_projections/expProjections/")
 
 params <- list(fy = 22,
                qtr = 3)
