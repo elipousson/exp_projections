@@ -15,8 +15,9 @@ library(kableExtra)
 library(viridis)
 library(viridisLite)
 library(scales)
-source("expProjections/R/1_apply_excel_formulas.R")
+library(rlist)
 
+source("expProjections/R/1_apply_excel_formulas.R")
 source("expProjections/R/1_export.R")
 source("expProjections/R/1_set_calcs.R")
 source("expProjections/R/1_subset.R")
@@ -34,7 +35,7 @@ internal <- setup_internal(proj = "quarterly")
 internal$analyst_files <- if (params$qtr == 1) {
   paste0("G:/Fiscal Years/Fiscal 20", params$fy, "/Projections Year/4. Quarterly Projections/", params$qtr, "st Quarter/4. Expenditure Backup")} else if (params$qtr == 2) {
     paste0("G:/Fiscal Years/Fiscal 20", params$fy, "/Projections Year/4. Quarterly Projections/", params$qtr, "nd Quarter/4. Expenditure Backup")} else if (params$qtr == 3) {
-      paste0("G:/Fiscal Years/Fiscal 20", params$fy, "/Projections Year/4. Quarterly Projections/", params$qtr, "rd Quarter/4. Expenditure Backup")}
+      paste0("G:/Fiscal Years/Fiscal 20", params$fy, "/Projections Year/4. Quarterly Projections/", params$qtr, "rd Quarter/4. Expenditure Backup")} 
 
 cols <- list(calc = paste0("Q", params$qtr, " Calculation"),
              proj = paste0("Q", params$qtr, " Projection"),
@@ -101,7 +102,8 @@ if (is.na(params$compiled_edit)) {
 # Validation ####
 
 # which agency files are missing?
-unique(analysts$`Agency Name`)[!unique(analysts$`Agency Name`) %in% compiled$`Agency Name`]
+missing = list.zip(agencies = unique(analysts$`Agency`)[!unique(analysts$`Agency`) %in% compiled$`Agency`],
+analysts = analysts$Analyst[!analysts$`Agency` %in% compiled$`Agency`])
 
 # add Total Budget check; helps with identifying deleted line items / doubled agency files
 ##won't work because no accurate xwalk with BAPS files / replaced with Workday file

@@ -20,10 +20,10 @@ import_analyst_files <- function(files) {
     set_names(files) %>%
     map(select, Agency:`Spend Category`,
         matches("^Q[1-4]{1} Calculation$|^Q[1-4]{1} Manual Formula$|^Q[1-4]{1} Projection$|^Q[1-4]{1} Surplus/Deficit$|^Q[1-4]{1} Actuals|^FY[0-9]{2} Actual|^FY[0-9]{2} Adopted"),
-        `YTD Actuals`, !!paste0("FY", params$fy, " Budget"), Notes) %>%
+        `YTD Actuals`, !!paste0("FY", params$fy, " Budget")) %>%
     # changing data types here, before bind_rows()
     #bring in prior FY actuals
-    map(mutate_at, vars(matches(".*Calculation|.*Manual Formula|.*Notes")), as.character) %>%
+    map(mutate_at, vars(matches(".*Calculation|.*Manual Formula")), as.character) %>%
     map(mutate_at, vars(matches(".*Projection|.*Budget|.*Surplus|.*Actuals")), as.numeric)
 }
 
@@ -84,6 +84,7 @@ export_analyst_calcs_workday <- function(df) {
   
   if (nrow(check) > 0) {
     warning("There are ", nrow(check), " duplicated line item calculations")
+    export_excel(check, "Duplicate", "quarterly_outputs/Duplicate Calcs.xlsx")
   }
   
   cc_check <- df %>%
@@ -95,6 +96,7 @@ export_analyst_calcs_workday <- function(df) {
   
   if (nrow(cc_check) > 0) {
     warning("There are ", nrow(cc_check), " duplicated cost centers")
+    export_excel(cc_check, "Duplicate CCs", "quarterly_outputs/Duplicate CC Calcs.xlsx")
   }
   
   
