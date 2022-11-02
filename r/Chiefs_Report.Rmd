@@ -60,7 +60,7 @@ kable(chiefs_report, booktabs = TRUE, longtable = TRUE, align = c('l', 'l', rep(
 
 ### By Ledger Account Summary
 
-```{r, fig.align = "center"}
+```{r Ledger Account Summary Table, fig.align = "center"}
 
 ledger_summary <- import("G:/Analyst Folders/Sara Brumfield/_ref/Ledger Summary to Spend Category Map.xlsx") %>%
 select(`Spend Category`, `Ledger Summary`)
@@ -79,13 +79,24 @@ ledger %>%
   kable(booktabs = TRUE, longtable = TRUE, align = c('l', rep('r', 5))) %>%
   row_spec(0,  bold = TRUE) %>%
   kable_styling(latex_options = c("repeat_header"), font_size = 10)
+```
 
-ledger %>%
-  select(label = `Ledger Summary`, !!sym(internal$col.proj), !!sym(internal$col.surdef)) %>%
-  format_plot(
-    "bar_group", set_scale = "m", bar_anno_col = internal$col.surdef, bar_anno_y = 1.25,
-    bar_anno_word_positive = " surplus", bar_anno_word_negative = " deficit") %>%
-    orca(file = paste0("quarterly_outputs/plots/", "ledger", ".pdf"), width = "800", height = "400")
+```{r Ledger Account Summary Graph, fig.align='center'}
+
+ledger_summary <- ledger %>%
+  select(label = `Ledger Summary`, !!sym(paste0("FY", params$fy, " Budget")), !!sym(internal$col.proj), !!sym(internal$col.surdef)) %>%
+  arrange(label)
+
+ledger_summary %>%
+format_plot(
+  type = "bar_group",
+  set_scale = "m",
+  bar_anno_col = internal$col.surdef,
+  margin_t = 50, margin_b = 50,
+  bar_anno_word_positive = " surplus",
+  bar_anno_word_negative = " deficit"
+  ) %>%
+  orca(file = paste0("quarterly_outputs/plots/", "ledger", ".pdf"), width = "800", height = "400")
 
 include_graphics(paste0("quarterly_outputs/plots/", "ledger", ".pdf"))
 

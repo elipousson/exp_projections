@@ -27,8 +27,10 @@ source("expProjections/R/2_make_chiefs_report.R")
 source("expProjections/R/2_rename_factor_object.R")
 source("expProjections/R/1_apply_excel_formulas.R")
 source("r/setup.R")
-source("G:/Budget Publications/automation/0_data_prep/bookHelpers/R/plots.R")
+# source("G:/Budget Publications/automation/0_data_prep/bookHelpers/R/plots.R")
+source("G:/Budget Publications/automation/1_prelim_exec_sota/bookPrelimExecSOTA/R/plot_functions2.R")
 source("G:/Budget Publications/automation/0_data_prep/bookHelpers/R/formatting.R")
+source("G:/Analyst Folders/Sara Brumfield/_packages/bbmR/R/bbmr_colors.R")
 
 internal <- setup_internal(proj = "quarterly")
 
@@ -56,7 +58,8 @@ if (is.na(params$compiled_edit)) {
     mutate_if(is.numeric, replace_na, 0) %>% 
     # recalculate here, just in case formula got broken
     #make dynamic col name
-    mutate(!!sym(internal$col.surdef) := !!sym(paste0("FY", params$fy, " Budget")) - !!sym(internal$col.proj))
+    mutate(!!sym(internal$col.surdef) := !!sym(paste0("FY", params$fy, " Budget")) - !!sym(internal$col.proj)) %>%
+    filter(!is.na(`Cost Center`))
   
   if (params$qt > 1) {
     compiled <- compiled %>%
@@ -70,8 +73,8 @@ if (is.na(params$compiled_edit)) {
   export_analyst_calcs_workday(compiled)
   
   df <- compiled %>%
-    # ... but keep only general fund here bc we generally only project for GF
-    filter(`Fund` == "1001 General Fund") %>%
+    # ... but keep only general fund here bc we generally only project for GF // need to include PABC?
+    # filter(`Fund` == "1001 General Fund") %>%
     group_by(Agency, Service, `Cost Center`, Fund, Grant, 
              `Special Purpose`, `Spend Category`,
              !!sym(internal$col.calc)) %>%
@@ -98,12 +101,14 @@ if (is.na(params$compiled_edit)) {
   compiled <- import(params$compiled_edit)
 }
 
-
+## if GF only is needed
+compiled <- compiled %>% filter(Fund == "1001 General Fund")
 # Validation ####
 
 # which agency files are missing?
-missing = list.zip(agencies = unique(analysts$`Agency`)[!unique(analysts$`Agency`) %in% compiled$`Agency`],
-analysts = analysts$Analyst[!analysts$`Agency` %in% compiled$`Agency`])
+compiled_gf <- compiled %>% filter(Fund == "1001 General Fund")
+missing = list.zip(agencies = unique(analysts$`Agency`)[!unique(analysts$`Agency`) %in% compiled_gf$Agency],
+analysts = analysts$Analyst[!analysts$`Agency` %in% compiled_gf$Agency])
 
 # add Total Budget check; helps with identifying deleted line items / doubled agency files
 ##won't work because no accurate xwalk with BAPS files / replaced with Workday file
@@ -137,5 +142,5 @@ trace("orca", edit = TRUE)
 
 rmarkdown::render('r/Chiefs_Report.Rmd',
                   output_file = paste0("FY", params$fy,
-                                       " Q", params$qt, " Chiefs Report.pdf"),
+                                       " Q", params$qt, " Chiefs Report_test.pdf"),
                   output_dir = 'quarterly_outputs/')

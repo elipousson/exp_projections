@@ -190,8 +190,11 @@ run_summary_reports_workday <- function(df) {
     cost_center = df %>%
       group_by(Agency, Service, `Cost Center`),
     fund = df %>%
-      group_by(Agency, Service, Fund, Grant, 
-               `Special Purpose`),
+      group_by(Agency, Service, Fund),
+    grant = df %>%
+      group_by(Agency, Service, Grant) %>% filter(!is.na(Grant)),
+    special = df %>%
+      group_by(Agency, Service, `Special Purpose`) %>% filter(!is.na(`Special Purpose`)),
     agency = df %>%
       group_by(`Agency`)) %>%
     map(summarize_at,
@@ -218,6 +221,10 @@ run_summary_reports_workday <- function(df) {
                col_width = rep(15, ncol(reports$cost_center)))
   export_excel(reports$fund, "Fund", internal$output, "existing",
                col_width = rep(15, ncol(reports$fund)))
+  export_excel(reports$grant, "Grant", internal$output, "existing",
+               col_width = rep(15, ncol(reports$grant)))
+  export_excel(reports$special, "Special Purpose", internal$output, "existing",
+               col_width = rep(15, ncol(reports$special)))
   export_excel(reports$agency, "Agency", internal$output, "existing")
   
 }
@@ -287,6 +294,7 @@ import_workday <- function(file_name = file_name) {
   
   return(input)
 }
+
 
 #' Export Workday file
 #'
