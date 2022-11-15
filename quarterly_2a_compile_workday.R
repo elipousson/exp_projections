@@ -17,6 +17,8 @@ library(viridisLite)
 library(scales)
 library(rlist)
 
+devtools::load_all("G:/Analyst Folders/Sara Brumfield/_packages/bbmR")
+
 source("expProjections/R/1_apply_excel_formulas.R")
 source("expProjections/R/1_export.R")
 source("expProjections/R/1_set_calcs.R")
@@ -27,7 +29,8 @@ source("expProjections/R/2_make_chiefs_report.R")
 source("expProjections/R/2_rename_factor_object.R")
 source("expProjections/R/1_apply_excel_formulas.R")
 source("r/setup.R")
-# source("G:/Budget Publications/automation/0_data_prep/bookHelpers/R/plots.R")
+source("G:/Budget Publications/automation/0_data_prep/bookHelpers/R/plots.R")
+# source("G:/Budget Publications/automation/1_prelim_exec_sota/bookPrelimExecSOTA/R/plot_functions.R")
 source("G:/Budget Publications/automation/1_prelim_exec_sota/bookPrelimExecSOTA/R/plot_functions2.R")
 source("G:/Budget Publications/automation/0_data_prep/bookHelpers/R/formatting.R")
 source("G:/Analyst Folders/Sara Brumfield/_packages/bbmR/R/bbmr_colors.R")
@@ -43,6 +46,10 @@ cols <- list(calc = paste0("Q", params$qtr, " Calculation"),
              proj = paste0("Q", params$qtr, " Projection"),
              surdef = paste0("Q", params$qtr, " Surplus/Deficit"),
              budget = paste0("FY", params$fy, " Budget"))
+
+#analyst assignments
+analysts <- import("G:/Analyst Folders/Sara Brumfield/_ref/Analyst Assignments.xlsx") %>%
+  filter(Projections == TRUE)
 
 ##read in data ===============
 if (is.na(params$compiled_edit)) {
@@ -110,9 +117,9 @@ compiled_gf <- compiled %>% filter(Fund == "1001 General Fund")
 missing = list.zip(agencies = unique(analysts$`Agency`)[!unique(analysts$`Agency`) %in% compiled_gf$Agency],
 analysts = analysts$Analyst[!analysts$`Agency` %in% compiled_gf$Agency])
 
-# add Total Budget check; helps with identifying deleted line items / doubled agency files
+## add Total Budget check; helps with identifying deleted line items / doubled agency files=================
 ##won't work because no accurate xwalk with BAPS files / replaced with Workday file
-totals <- import_workday(file_path)
+# totals <- import_workday(file_path)
   # compiled %>%
   # filter(`Fund` == "1001 General Fund") %>%
   # group_by(`Agency`, `Service`, `Cost Center`, Fund, Grant, `Special Purpose`) %>%
@@ -132,6 +139,8 @@ totals <- import_workday(file_path)
 if (nrow(totals) > 0) {
   export_excel(totals, "Mismatched Totals", internal$output, "existing") 
 }
+
+
 
 # Export ####
 chiefs_report <- calc_chiefs_report_workday(df) %>%

@@ -198,7 +198,7 @@ run_summary_reports_workday <- function(df) {
     agency = df %>%
       group_by(`Agency`)) %>%
     map(summarize_at,
-        vars(matches("Q.*Projection|* Budget|Q.*Surplus|Q.*Diff")),
+        vars(matches("Q.*Projection|* Budget|Q.*Actuals|Q.*Surplus|Q.*Diff")),
         sum, na.rm = TRUE) %>%
     map(filter, !is.na(`Agency`))
   
@@ -211,7 +211,10 @@ run_summary_reports_workday <- function(df) {
   reports$agency <- reports$agency %>%
     select(`Agency`, !!sym(cols$budget),
            starts_with("Q1"), starts_with("Q2"), starts_with("Q3")) %>%
-    mutate_if(is_numeric, replace_na, 0)
+    mutate_if(is_numeric, replace_na, 0) %>%
+    mutate(`Signif Diff` = ifelse(
+      (!!sym(cols$proj) / !!sym(cols$budget) <= .8 | !!sym(cols$proj) / !!sym(cols$budget) >= 1.2) &
+        !!sym(cols$budget) - !!sym(cols$proj) > 20000, TRUE, FALSE))
   
   export_excel(df, "Compiled", internal$output, "new",
                col_width = rep(15, ncol(df)))
