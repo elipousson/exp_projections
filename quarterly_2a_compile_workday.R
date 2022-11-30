@@ -149,7 +149,8 @@ chiefs_report <- calc_chiefs_report_workday(df) %>%
 library(plotly)
 trace("orca", edit = TRUE)
 
+#margins on plots need fixing, especially for negative values
 rmarkdown::render('r/Chiefs_Report.Rmd',
                   output_file = paste0("FY", params$fy,
-                                       " Q", params$qt, " Chiefs Report_test.pdf"),
+                                       " Q", params$qt, " Chiefs Report.pdf"),
                   output_dir = 'quarterly_outputs/')
