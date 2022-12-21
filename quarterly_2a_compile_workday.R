@@ -16,6 +16,7 @@ library(viridis)
 library(viridisLite)
 library(scales)
 library(rlist)
+library(lubridate)
 
 devtools::load_all("G:/Analyst Folders/Sara Brumfield/_packages/bbmR")
 
@@ -52,6 +53,26 @@ analysts <- import("G:/Analyst Folders/Sara Brumfield/_ref/Analyst Assignments.x
   filter(Projections == TRUE)
 
 ##read in data ===============
+
+##payroll forward accruals to back out of projection data
+forward <- import("Payroll Forwards Citywide.csv") %>%
+  filter(Fund == "2076 Parking Management (General Fund)" | Fund == "1001 General Fund") 
+
+back_out <- forward %>%
+  mutate(Date = as.Date(`Transaction Date`, '%m/%d/%Y'),
+         Month = lubridate::month(Date),
+         Quarter = case_when(Month %in% c(7,8,9) ~ 1,
+                             Month %in% c(10,11,12) ~ 2,
+                             Month %in% c(1,2,3) ~ 3,
+                             Month %in% c(4,5,6) ~ 4),
+         Grant = gsub("", "(Blank)", Grant),
+         `Special Purpose` = gsub("", "(Blank)", `Special Purpose`)) %>%
+  filter(Quarter == params$qtr) %>%
+  rename(`Forward Accrual` = `Transaction Credit Amount`) %>%
+  select(-`Transaction Debit Amount`, -Date, -Month, -`Transaction Date`, -Quarter) %>%
+  group_by(Agency, Service, `Cost Center`, Fund, Grant, `Special Purpose`, `Spend Category`) %>%
+  summarise_if(is.numeric, sum, na.rm = TRUE)
+
 if (is.na(params$compiled_edit)) {
   
   data <- list.files(internal$analyst_files, pattern = paste0("^[^~].*Q", params$qtr ,".*xlsx"),
@@ -111,6 +132,15 @@ if (is.na(params$compiled_edit)) {
 ## if GF only is needed
 compiled <- compiled %>% filter(Fund == "1001 General Fund")
 # Validation ####
+
+##remove payroll forward
+data <- compiled %>% left_join(back_out, by = c("Agency", "Service", "Cost Center", "Fund", "Grant", "Special Purpose", "Spend Category")) %>%
+  relocate(`Forward Accrual`, .after = `Q1 Actuals`) %>%
+  mutate(`Q1 Actual (Clean)` = `Q1 Actuals` - `Forward Accrual`) %>%
+  relocate(`Q1 Actual (Clean)`, .after = `Forward Accrual`)
+
+##save $$ for next quarter
+export_excel(data, "Q1 Forward Accrual", "quarterly_outputs/FY23 Q2 Forward Accruals.xlsx")
 
 # which agency files are missing?
 compiled_gf <- compiled %>% filter(Fund == "1001 General Fund")
