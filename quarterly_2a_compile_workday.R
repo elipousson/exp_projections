@@ -40,8 +40,8 @@ internal <- setup_internal(proj = "quarterly")
 
 internal$analyst_files <- if (params$qtr == 1) {
   paste0("G:/Fiscal Years/Fiscal 20", params$fy, "/Projections Year/4. Quarterly Projections/", params$qtr, "st Quarter/4. Expenditure Backup")} else if (params$qtr == 2) {
-    paste0("G:/Fiscal Years/Fiscal 20", params$fy, "/Projections Year/4. Quarterly Projections/", params$qtr, "nd Quarter/4. Expenditure Backup")} else if (params$qtr == 3) {
-      paste0("G:/Fiscal Years/Fiscal 20", params$fy, "/Projections Year/4. Quarterly Projections/", params$qtr, "rd Quarter/4. Expenditure Backup")} 
+    paste0("G:/Fiscal Years/Fiscal 20", params$fy, "/Projections Year/4. Quarterly Projections/", params$qtr+1, "nd Quarter/4. Expenditure Backup")} else if (params$qtr == 3) {
+      paste0("G:/Fiscal Years/Fiscal 20", params$fy, "/Projections Year/4. Quarterly Projections/", params$qtr+2, "rd Quarter/4. Expenditure Backup")} 
 
 cols <- list(calc = paste0("Q", params$qtr, " Calculation"),
              proj = paste0("Q", params$qtr, " Projection"),
@@ -52,26 +52,7 @@ cols <- list(calc = paste0("Q", params$qtr, " Calculation"),
 analysts <- import("G:/Analyst Folders/Sara Brumfield/_ref/Analyst Assignments.xlsx") %>%
   filter(Projections == TRUE)
 
-##read in data ===============
 
-##payroll forward accruals to back out of projection data
-forward <- import("Payroll Forwards Citywide.csv") %>%
-  filter(Fund == "2076 Parking Management (General Fund)" | Fund == "1001 General Fund") 
-
-back_out <- forward %>%
-  mutate(Date = as.Date(`Transaction Date`, '%m/%d/%Y'),
-         Month = lubridate::month(Date),
-         Quarter = case_when(Month %in% c(7,8,9) ~ 1,
-                             Month %in% c(10,11,12) ~ 2,
-                             Month %in% c(1,2,3) ~ 3,
-                             Month %in% c(4,5,6) ~ 4),
-         Grant = gsub("", "(Blank)", Grant),
-         `Special Purpose` = gsub("", "(Blank)", `Special Purpose`)) %>%
-  filter(Quarter == params$qtr) %>%
-  rename(`Forward Accrual` = `Transaction Credit Amount`) %>%
-  select(-`Transaction Debit Amount`, -Date, -Month, -`Transaction Date`, -Quarter) %>%
-  group_by(Agency, Service, `Cost Center`, Fund, Grant, `Special Purpose`, `Spend Category`) %>%
-  summarise_if(is.numeric, sum, na.rm = TRUE)
 
 if (is.na(params$compiled_edit)) {
   

@@ -20,7 +20,7 @@ import_analyst_files <- function(files) {
     set_names(files) %>%
     map(select, Agency:`Spend Category`,
         matches("^Q[1-4]{1} Calculation$|^Q[1-4]{1} Manual Formula$|^Q[1-4]{1} Projection$|^Q[1-4]{1} Surplus/Deficit$|^Q[1-4]{1} Actuals|^FY[0-9]{2} Actual|^FY[0-9]{2} Adopted"),
-        `YTD Actuals`, !!paste0("FY", params$fy, " Budget")) %>%
+        `YTD Actuals`, !!paste0("FY", params$fy, " Budget"), Notes) %>%
     # changing data types here, before bind_rows()
     #bring in prior FY actuals
     map(mutate_at, vars(matches(".*Calculation|.*Manual Formula")), as.character) %>%
@@ -247,32 +247,32 @@ run_summary_reports_workday <- function(df) {
 
 
 import_workday <- function(file_name = file_name) {
-  input <- import(file_name, skip = 8) %>%
+  input <- import(paste0("inputs/", file_name), skip = 8) %>%
     filter(Fund == "1001 General Fund") %>%
-    select(-`...8`, -`Total Spent`) %>%
+    select(-`...9`, -`Total Spent`) %>%
     mutate(`Workday Agency ID` = str_extract(Agency, pattern = "(AGC\\d{4})"),
            `Fund ID`= as.numeric(substr(Fund, 1, 4))) %>%
     ##manually adjust columns by date for now
-    rename(`Jun 22 Actuals` = `Actuals...11`,
-           `Jul Actuals` = `Actuals...14`,
-           `Aug Actuals` =  `Actuals...17`,
-           `Sep Actuals` =  `Actuals...20`,
-           # `Oct Actuals` = `Actual...23`,
-           # `Nov Actuals` = `Actual...26`,
-           # `Dec Actuals` =  `Actual...29`,
-           # `Jan Actuals` = `Actual...32`,
-           # `Feb Actuals` =  `Actual...35`,
-           # `Mar Actuals` =  `Actual...38`,
-           # `Apr Actuals` = `Actual...41`,
-           # `May Actuals` = `Actual...44`,
-           # `Jun Actuals` = `Actual...47`,
-           `Jun 22 Obligations` = `Obligations...12`,
-           `Jul Obligations` = `Obligations...15`,
-           `Aug Obligations` =  `Obligations...18`,
-           `Sep Obligations` =  `Obligations...21`
-           # `Oct Obligations` = `Obligations...24`,
-           # `Nov Obligations` = `Obligations...27`,
-           # `Dec Obligations` =  `Obligations...30`,
+    rename(`Jun 22 Actuals` = `Actuals...12`,
+           `Jul Actuals` = `Actuals...15`,
+           `Aug Actuals` =  `Actuals...18`,
+           `Sep Actuals` =  `Actuals...21`,
+           `Oct Actuals` = `Actuals...24`,
+           `Nov Actuals` = `Actuals...27`,
+           `Dec Actuals` =  `Actuals...30`,
+           # `Jan Actuals` = `Actuals...32`,
+           # `Feb Actuals` =  `Actuals...35`,
+           # `Mar Actuals` =  `Actuals...38`,
+           # `Apr Actuals` = `Actuals...41`,
+           # `May Actuals` = `Actuals...44`,
+           # `Jun Actuals` = `Actuals...47`,
+           `Jun 22 Obligations` = `Obligations...13`,
+           `Jul Obligations` = `Obligations...16`,
+           `Aug Obligations` =  `Obligations...19`,
+           `Sep Obligations` =  `Obligations...22`,
+           `Oct Obligations` = `Obligations...25`,
+           `Nov Obligations` = `Obligations...28`,
+           `Dec Obligations` =  `Obligations...31`
            # `Jan Obligations` = `Obligations...33`,
            # `Feb Obligations` =  `Obligations...36`,
            # `Mar Obligations` =  `Obligations...39`,
@@ -283,17 +283,21 @@ import_workday <- function(file_name = file_name) {
     mutate(
       #includes June
       `Q1 Actuals` = as.numeric(`Jul Actuals`) + as.numeric(`Aug Actuals`) + as.numeric(`Sep Actuals`) + as.numeric(`Jun 22 Actuals`),
+      `Q2 Actuals` = as.numeric(`Oct Actuals`) + as.numeric(`Nov Actuals`) + as.numeric(`Dec Actuals`),
       #includes June
       `Q1 Obligations` = as.numeric(`Jul Obligations`) + as.numeric(`Aug Obligations`) + as.numeric(`Sep Obligations`) + as.numeric(`Jun 22 Obligations`),
-      # `Q2 Actuals` = as.numeric(`Oct Actuals`) + as.numeric(`Nov Actuals`) + as.numeric(`Dec Actuals`),
+      `Q2 Obligations` = as.numeric(`Oct Obligations`) + as.numeric(`Nov Obligations`) + as.numeric(`Dec Obligations`),
       # `Q3 Actuals` = as.numeric(`Jan Actuals`) + as.numeric(`Feb Actuals`) + as.numeric(`Mar Actuals`),
       # `Q4 Actuals` = as.numeric(`Apr Actuals`) + as.numeric(`May Actuals`) + as.numeric(`Jun Actuals`),
-      `YTD Actuals + Obligations` = `Q1 Actuals` + `Q1 Obligations`,
-      `YTD Actuals` = `Q1 Actuals`
+      `YTD Actuals + Obligations` = `Q1 Actuals` + `Q1 Obligations` + `Q2 Actuals` + `Q2 Obligations`,
+      `YTD Actuals` = `Q1 Actuals` + `Q2 Actuals`
     ) %>%
     select(-matches("(\\...)")) %>%
     relocate(`Q1 Actuals`, .after = `YTD Actuals + Obligations`) %>%
-    relocate(`Q1 Obligations`, .after = `Q1 Actuals`)
+    relocate(`Q1 Obligations`, .after = `Q1 Actuals`) %>%
+    relocate(`Q2 Actuals`, .after = `Q1 Obligations`) %>%
+    relocate(`Q2 Obligations`, .after = `Q2 Actuals`) %>%
+    relocate(`YTD Actuals`, .after = `Fund ID`)
   
   return(input)
 }

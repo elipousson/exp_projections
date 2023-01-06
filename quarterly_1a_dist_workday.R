@@ -39,10 +39,10 @@ options("openxlsx.numFmt" = "#,##0")
 #   select(`Agency`:`YTD Spent`)
 
 ##distribution prep ==============
-params <- list(qtr = 1,
+params <- list(qtr = 2,
                fy = 23,
-               fiscal_month = 3,
-               calendar_month = 9,
+               fiscal_month = 6,
+               calendar_month = 10,
                calendar_year = 22)
 
 cols <- list(calc = paste0("Q", params$qtr, " Calculation"),
@@ -86,6 +86,24 @@ fy22 <- fy22_adopted %>%
             `FY21 Adopted` = sum(`FY21 Adopted`, na.rm = TRUE),
             `FY21 Actual` = sum(`FY21 Actual`, na.rm = TRUE))
 
+##payroll forward accruals to back out of projection data
+forward <- import("Payroll Forwards Citywide.csv") %>%
+  filter(Fund == "2076 Parking Management (General Fund)" | Fund == "1001 General Fund") 
+
+back_out <- forward %>%
+  mutate(Date = as.Date(`Transaction Date`, '%m/%d/%Y'),
+         Month = lubridate::month(Date),
+         Quarter = case_when(Month %in% c(7,8,9) ~ 1,
+                             Month %in% c(10,11,12) ~ 2,
+                             Month %in% c(1,2,3) ~ 3,
+                             Month %in% c(4,5,6) ~ 4),
+         Grant = gsub("", "(Blank)", Grant),
+         `Special Purpose` = gsub("", "(Blank)", `Special Purpose`)) %>%
+  filter(Quarter == params$qtr) %>%
+  rename(`Forward Accrual` = `Transaction Credit Amount`) %>%
+  select(-`Transaction Debit Amount`, -Date, -Month, -`Transaction Date`, -Quarter) %>%
+  group_by(Agency, Service, `Cost Center`, Fund, Grant, `Special Purpose`, `Spend Category`) %>%
+  summarise_if(is.numeric, sum, na.rm = TRUE)
 
 ##join historic and current data
 hist_mapped <- input %>% left_join(fy22, by = c("Cost Center", "Spend Category", "Fund ID")) %>%
@@ -186,6 +204,14 @@ calcs <- import_analyst_calcs()
 # join <- left_join(hist_mapped, calcs_join_fields, by = c("Agency", "Service", "Cost Center", "Fund", "Grant", "Special Purpose", "Spend Category"))
 
 #add excel formula for calculations ==================
+#bring in previous quarter's calcs
+prev_calcs <- import(paste0("quarterly_outputs/FY23 Q", params$qtr-1," Analyst Calcs.csv")) %>%
+  select(Agency:`Spend Category`, `Q1 Calculation`, `Q1 Projection`, Notes)
+
+projections <- hist_mapped %>% 
+  left_join(prev_calcs, by = c("Agency", "Service", "Cost Center", "Fund", "Grant", "Special Purpose", "Spend Category")) %>%
+  mutate(Calculation = `Q1 Calculation`)
+
 #update col names for new FY
 make_proj_formulas <- function(df, manual = "zero") {
   
@@ -196,32 +222,22 @@ make_proj_formulas <- function(df, manual = "zero") {
     mutate(
       `Projection` =
         paste0(
-          'IF([', cols$calc,
-          ']="At Budget",[FY23 Budget], 
-        IF([', cols$calc,
-          ']="YTD", [YTD Actuals],
-        IF([', cols$calc,
-          ']="No Funds Expended", 0, 
-        IF([', cols$calc,
-          ']="Straight", ([Q', params$qtr, ' Actuals]/', params$fiscal_month, ')*12, 
-        IF([', cols$calc,
-          ']="YTD & Encumbrance", [YTD Actuals + Obligations], 
-        IF([', cols$calc,
-          ']="Manual", 0, 
-        IF([', cols$calc,
-          ']="Straight & Encumbrance", (([Q', params$qtr, ' Actuals]/', params$fiscal_month,
-          ')*12) + [Q1 Obligations])))))))'),
+          'IF([', cols$calc, ']="At Budget",[FY23 Budget], IF([', cols$calc, ']="YTD", [YTD Actuals], IF([', cols$calc, ']="No Funds Expended", 0, IF([', cols$calc, ']="Straight", ([Q', params$qtr, ' Actuals]/', params$fiscal_month, ')*12, IF([', cols$calc, ']="YTD & Encumbrance", [YTD Actuals + Obligations], IF([', cols$calc, ']="Manual", 0, IF([', cols$calc, ']="Straight & Encumbrance", (([Q', params$qtr, ' Actuals]/', params$fiscal_month, ')*12) + [Q', params$qtr,' Obligations])))))))'),
       `Surplus/Deficit` = paste0("[FY23 Budget] - [", cols$proj, "]"))
   
 }
 
-output <- hist_mapped %>%
+output <- projections %>%
   make_proj_formulas() %>%
   rename(!!cols$calc := Calculation,
          !!cols$proj := Projection,
-         !!cols$surdef := `Surplus/Deficit`) %>%
-  mutate(`Notes` = "") %>%
-  relocate(`Workday Agency ID`, .after = `Notes`)
+         !!cols$surdef := `Surplus/Deficit`,
+         `FY22 Budget` = `FY22 Total Budget`) %>%
+  #only for Q1
+  # mutate(`Notes` = "") %>%
+  relocate(`Workday Agency ID`, .before = `Agency`) %>%
+  relocate(Notes, .after = !!cols$surdef) %>%
+  select(-Pillar)
 
 ##numbers check
 join_23_act <- sum(output$`YTD Actuals + Obligations`, na.rm = TRUE)
@@ -267,11 +283,11 @@ export_workday <- function(agency_id, list) {
   agency_id <- as.character(agency_id)
   agency_name <- analysts$`Agency Name - Cleaned`[analysts$`Workday Agency ID`==agency_id]
   file_path <- paste0(
-    "G:/Agencies/", agency_name, "/File Distribution/FY", params$fy, " Q", params$qtr, " - ", agency_name, ".xlsx")
+    "quarterly_dist/FY", params$fy, " Q", params$qtr, " - ", agency_name, ".xlsx")
   data <- list[[agency_id]]$line.item %>%
     apply_formula_class(c(cols$proj, cols$surdef)) 
   
-  style <- list(cell.bg = createStyle(fgFill = "pink", border = "TopBottomLeftRight",
+  style <- list(cell.bg = createStyle(fgFill = "lightgreen", border = "TopBottomLeftRight",
                                       borderColour = "black", textDecoration = "bold",
                                       wrapText = TRUE),
                 formula.num = createStyle(numFmt = "#,##0"),
@@ -315,4 +331,4 @@ export_workday <- function(agency_id, list) {
   message(agency_name, " projections tab exported.")
 }
 
-# export_workday("AGC5500", agency_data)
+export_workday("AGC4366", agency_data)
