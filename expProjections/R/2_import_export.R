@@ -237,6 +237,7 @@ run_summary_reports_workday <- function(df) {
 #' Data transformation for Workday Budget vs Actuals - BBMR report from Workday
 #'
 #' @param file path
+#' @param fund vector of funds
 #'
 #' @return An Excel file with
 #'
@@ -246,9 +247,9 @@ run_summary_reports_workday <- function(df) {
 #' @export
 
 
-import_workday <- function(file_name = file_name) {
+import_workday <- function(file_name = file_name, fund = c("1001 General Fund")) {
   input <- import(paste0("inputs/", file_name), skip = 8) %>%
-    filter(Fund == "1001 General Fund") %>%
+    filter(Fund %in% fund) %>%
     select(-`...9`, -`Total Spent`) %>%
     mutate(`Workday Agency ID` = str_extract(Agency, pattern = "(AGC\\d{4})"),
            `Fund ID`= as.numeric(substr(Fund, 1, 4))) %>%

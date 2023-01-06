@@ -17,27 +17,6 @@ source("expProjections/R/1_apply_excel_formulas.R")
 # set number formatting for openxlsx
 options("openxlsx.numFmt" = "#,##0")
 
-# # Workday report ===============
-# input <- import("workday.xlsx") 
-# 
-# #remove first row from double headers
-# input <- input[-1,]
-# 
-# output <- input %>% mutate(`Agency` = case_when(startsWith(`...1`, "AGC") ~ `...1`),
-#                           `Service` = case_when(startsWith(`...1`, "SRV") ~ `...1`),
-#                           `Cost Center` = case_when(startsWith(`...1`, "CCA") ~ `...1`),
-#                           `Q1` = as.numeric(`01-Jul`) + as.numeric(`02-Aug`) + as.numeric(`03-Sep`),
-#                           `Q2` = as.numeric(`04-Oct`) + as.numeric(`05-Nov`) + as.numeric(`06-Dec`),
-#                           `Q3` = as.numeric(`07-Jan`) + as.numeric(`08-Feb`) + as.numeric(`09-Mar`),
-#                           `Q4` = as.numeric(`10-Apr`) + as.numeric(`11-May`) + as.numeric(`12-Jun`),
-#                           `Budget` = as.numeric(`...3`),
-#                           `YTD Spent` = `Q1` + `Q2` + `Q3` + `Q4`) %>%
-#   fill(`Agency`, .direction = "up") %>%
-#   fill(`Service`, .direction = "downup") %>%
-#   fill(`Cost Center`, .direction = "downup") %>% 
-#   filter(startsWith(`...1`, "CCA")) %>%
-#   select(`Agency`:`YTD Spent`)
-
 ##distribution prep ==============
 params <- list(qtr = 2,
                fy = 23,
@@ -56,7 +35,8 @@ analysts <- import("G:/Analyst Folders/Sara Brumfield/_ref/Analyst Assignments.x
 
 #read in data ===============
 file_name <- paste0("FY", params$fy, " Q", params$qt, " Actuals.xlsx")
-input <- import_workday(file_name) 
+##run separately for GF, Parking Mgt and ISF
+input <- import_workday(file_name, fund = c("1001 General Fund", "2075 Parking Facilities Fund")) 
 
 #fy22 actuals
 fy22_actuals <- import("G:/Fiscal Years/Fiscal 2022/Projections Year/2. Monthly Expenditure Data/Month 12_June Projections/Expenditure 2022-06_Run7.xlsx", which = "CurrentYearExpendituresActLevel") %>%
@@ -140,72 +120,9 @@ ifelse(gf_total == join_23_budget, print("FY23 budget join OK."), print(paste0("
 ifelse(gf_spent == join_23_actual, print("FY23 actuals join OK."), print(paste0("FY23 actuals join not OK. Off by ", gf_spent - join_23_actual)))
 
 
-#xwalk with Workday ======
-# xwalk <- import("G:/Fiscal Years/Fiscal 2023/Projections Year/1. July 1 Prepwork/Appropriation File/Fiscal 2023 Appropriation File_With_Positions_WK_Accounts.xlsx",
-#                 which = "FY23 Appropriation File") %>%
-#   select(-starts_with("FY23"), -`Carry Forward B Purpose`, -`Carry Forward A Purpose`, -`Line Item Justification`)
-
-#fund/grant
-# fund <- import("G:/Analyst Folders/Sara Brumfield/_ref/Baltimore FDM Crosswalk.xlsx", which = "Fund")
-# 
-# #spend category
-# oso <- import("G:/Fiscal Years/SubObject_SpendCategory.xlsx")
-# 
-# hist_workday<- hist_mapped %>% left_join(oso, by = c("subobject_id" = "BPFS SubObject ID",
-#                                               "object_id" = "Object ID"))%>%
-#   left_join(fund, by = c("detailed_fund_id" = "Fund"))
-# 
-# # missing_oso <- hist_workday %>% filter(is.na(`Spend Category Name`))
-# 
-# export_excel(hist_mapped, tab_name = "Join", file_name = "Join Check.xlsx")
-# 
-# hist_pivot <- hist_workday %>% select(`agency_id`, `program_id`, `Cost_Center_ID`,
-#                                       `Cost_Center_Name`, `Spend Category ID`,
-#                                       `Spend Category Name`, `FUND ID`, `Fund Name`, 
-#                                       `Fiscal_Year`, `adopted`, `actual`) %>% 
-#   unite(Fund, `FUND ID`, `Fund Name`, sep = " ") %>%
-#   unite(`Cost Center`, `Cost_Center_ID`, `Cost_Center_Name`, sep = " ") %>%
-#   unite(`Spend Category`, `Spend Category ID`, `Spend Category Name`, sep = " - ") %>%
-#   group_by(`agency_id`, `program_id`, `Cost Center`, `Spend Category`, `Fund`, 
-#            `Fiscal_Year`) %>%
-#   summarise(adopted = sum(adopted, na.rm = TRUE),
-#             actual = sum(actual, na.rm = TRUE)) %>%
-#   pivot_wider(names_from = `Fiscal_Year`, values_from = c(`adopted`, `actual`))
-
-
-#pull in previous quarters if != qtr 1 =================
-
-
-#add analyst calcs
-import_analyst_calcs <- function() {
-  
-  file <- ifelse(
-    params$qt == 1,
-    paste0("quarterly_outputs/FY",
-           params$fy - 1, "/FY",
-           params$fy - 1, " Q3 Analyst Calcs.csv"),
-    paste0("quarterly_outputs/FY",
-           params$fy, "/FY",
-           params$fy - 1, " Q", params$qt - 1, " Analyst Calcs.csv"))
-  
-  read_csv(file) %>%
-    mutate_at(vars(ends_with("ID")), as.character)
-    # select(-ends_with("Name"))
-  
-}
-calcs <- import_analyst_calcs()
-
-#prep cols for calcs ================
-# calcs_join_fields <- input %>% select("Agency", "Service", "Cost Center", "Fund", "Grant", "Special Purpose", "Spend Category") %>%
-#   mutate(` ` = "")
-# colnames(calcs_join_fields) <- c("Agency", "Service", "Cost Center", "Fund", "Grant", "Special Purpose", "Spend Category", "Calculation")
-# 
-#   
-# join <- left_join(hist_mapped, calcs_join_fields, by = c("Agency", "Service", "Cost Center", "Fund", "Grant", "Special Purpose", "Spend Category"))
-
 #add excel formula for calculations ==================
 #bring in previous quarter's calcs
-prev_calcs <- import(paste0("quarterly_outputs/FY23 Q", params$qtr-1," Analyst Calcs.csv")) %>%
+prev_calcs <- import(ifelse(params$qtr != 1, paste0("quarterly_outputs/FY23 Q", params$qtr-1," Analyst Calcs.csv"), paste0("quarterly_outputs/FY", params$fy-1, " Q4 Analyst Calcs.csv"))) %>%
   select(Agency:`Spend Category`, `Q1 Calculation`, `Q1 Projection`, Notes)
 
 projections <- hist_mapped %>% 
