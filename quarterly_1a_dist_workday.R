@@ -35,7 +35,7 @@ cols <- list(calc = paste0("Q", params$qtr, " Calculation"),
 names(cols$workday) = cols$workday
 
 file_name <- paste0("FY", params$fy, " Q", params$qt, " Actuals.xlsx")
-##run separately for GF, Parking Mgt and ISF
+##run separately for GF, Parking Mgt and ISF in Workday values
 PFF = list("2075" = "2075 Parking Facilities Fund")
 GF = list("1001" = "1001 General Fund")
 ISF = list("2029" = "2029 Building Maintenance Fund", 
@@ -208,6 +208,7 @@ make_proj_formulas <- function(df, manual = "zero") {
 
 #export =====================
 #divide by agency and analyst
+  ##helper functions
   get_agency_list <- function(fund = fund_name) {
     if (fund == "1001 General Fund") {
       x <- analysts %>%
@@ -225,8 +226,6 @@ make_proj_formulas <- function(df, manual = "zero") {
     return(x)
     }
   
-  x <- get_agency_list(fund = fund_name)
-  
   subset_agency_data <- function(agency_id) {
   
         data <- list(
@@ -241,9 +240,6 @@ make_proj_formulas <- function(df, manual = "zero") {
       
       return(data)
   }
-  
-  agency_data <- map(x, subset_agency_data) %>%
-    set_names(x)
   
   export_workday <- function(agency_id, list) {
     agency_id <- as.character(agency_id)
@@ -295,11 +291,76 @@ make_proj_formulas <- function(df, manual = "zero") {
     saveWorkbook(wb, file_path, overwrite = TRUE)
     
     message(agency_name, " projections tab exported.")
-}
+  }
   
-  # setwd("G:/Analyst Folders/Sara Brumfield/exp_projection_year/0_projections/quarterly_dist/")
-  map(x, export_workday, agency_data)
-  # setwd("G:/Analyst Folders/Sara Brumfield/exp_projection_year/0_projections/")
+  export_parking_funds <- function(df) {
+      file_path <- paste0(
+        "quarterly_dist/FY", params$fy, " Q", params$qtr, " - ", fund_name, ".xlsx")
+      data <- df %>%
+        apply_formula_class(c(cols$proj, cols$surdef)) 
+      
+      style <- list(cell.bg = createStyle(fgFill = "lightgreen", border = "TopBottomLeftRight",
+                                          borderColour = "black", textDecoration = "bold",
+                                          wrapText = TRUE),
+                    formula.num = createStyle(numFmt = "#,##0"),
+                    negative = createStyle(fontColour = "#9C0006"))
+      
+      style$rows <- 2:nrow(data)
+      
+      wb<- createWorkbook()
+      addWorksheet(wb, "Projections by Spend Category")
+      addWorksheet(wb, "Calcs", visible = FALSE)
+      writeDataTable(wb, 1, x = data)
+      writeDataTable(wb, 2, x = calc.list)
+      
+      dataValidation(
+        wb = wb,
+        sheet = 1,
+        rows = 2:nrow(data),
+        type = "list",
+        value = "Calcs!$A$2:$A$8",
+        cols = grep(cols$calc, names(data)))
+      
+      conditionalFormatting(
+        wb, 1, rows = style$rows, style = style$negative,
+        type = "expression", rule = "<0",
+        cols = grep(paste0(c(cols$calc, "Projection", "Surplus/Deficit"),
+                           collapse = "|"), names(data)))
+      
+      addStyle(wb, 1, style$cell.bg, rows = 1,
+               gridExpand = TRUE, stack = FALSE,
+               cols = grep(paste0(c(cols$calc, "Projection", "Surplus/Deficit"),
+                                  collapse = "|"), names(data)))
+      
+      addStyle(wb, 1, style$formula.num, rows = style$rows,
+               gridExpand = TRUE, stack = FALSE,
+               cols = grep(paste0(c(cols$calc, "Projection", "Surplus/Deficit"),
+                                  collapse = "|"), names(data)))
+      
+      
+      saveWorkbook(wb, file_path, overwrite = TRUE)
+      
+      message(fund_name, " projections tab exported.")
+    }
+  
+  x <- get_agency_list(fund = fund_name)
+  
+  if (fund == "Parking Management") {
+    agency_data <- output %>%
+      filter(Fund == PFF[[1]])
+    
+    export_parking_funds(agency_data)
+    
+    
+  } else if (fund != "Parking Management") {
+    agency_data <- map(x, subset_agency_data) %>%
+    set_names(x) 
+    
+    # setwd("G:/Analyst Folders/Sara Brumfield/exp_projection_year/0_projections/quarterly_dist/")
+    map(x, export_workday, agency_data)
+    # setwd("G:/Analyst Folders/Sara Brumfield/exp_projection_year/0_projections/")}
+  
+  }
 }
 
 create_projection_files(fund = "Parking Management")
