@@ -21,37 +21,71 @@ options("openxlsx.numFmt" = "#,##0")
 params <- list(qtr = 2,
                fy = 23,
                fiscal_month = 6,
-               calendar_month = 10,
+               calendar_month = 12,
                calendar_year = 22)
 
 cols <- list(calc = paste0("Q", params$qtr, " Calculation"),
              proj = paste0("Q", params$qtr, " Projection"),
              surdef = paste0("Q", params$qtr, " Surplus/Deficit"),
-             budget = paste0("FY", params$fy, " Budget"))
+             budget = paste0("FY", params$fy, " Budget"),
+             months = month.abb[seq(7, params$calendar_month)],
+             workday = as.list(outer(c("Jun 22", cols$months), c("Actuals", "Obligations"), paste)),
+             order = factor(as.list(outer(c("Jun 22", cols$months), c("Actuals", "Obligations"), paste)), levels = c("Jun 22", cols$months)))
 
-#analyst assignments
+names(cols$workday) = cols$workday
+
+file_name <- paste0("FY", params$fy, " Q", params$qt, " Actuals.xlsx")
+##run separately for GF, Parking Mgt and ISF
+PFF = list("2075" = "2075 Parking Facilities Fund")
+GF = list("1001" = "1001 General Fund")
+ISF = list("2029" = "2029 Building Maintenance Fund", 
+           "2030" ="2030	Mobile Equipment Fund", 
+           "2031" = "2031 Reproduction and Printing Fund", 
+           "2032" = "2032 Municipal Post Office Fund", 
+           "2036" = "2036	Risk Mgmt: Auto/Animal Liability Fund (Law Dept)", 
+           "2037" = "2037	Hardware & Software Replacement Fund", 
+           "2039" = "2039	Municipal Telephone Exchange Fund", 
+           "2041" = "2041	Risk Mgmt: Unemployment Insurance Fund", 
+           "2042" = "2042 Municipal Communication Fund", 
+           "2043" = "2043	Risk Mgmt: Property Liability & Administration Fund", 
+           "2046" = "Risk Mgmt: Worker's Compensation Fund (Law Dept)")
+
+#analyst assignments/universal/not fund dependent
 analysts <- import("G:/Analyst Folders/Sara Brumfield/_ref/Analyst Assignments.xlsx") %>%
   filter(Projections == TRUE)
 
 #read in data ===============
-file_name <- paste0("FY", params$fy, " Q", params$qt, " Actuals.xlsx")
-##run separately for GF, Parking Mgt and ISF
-input <- import_workday(file_name, fund = c("1001 General Fund", "2075 Parking Facilities Fund")) 
+create_projection_files <- function (fund = "General Fund") {
+  if (fund == "General Fund") {
+    fund_list = GF
+    fund_name = fund_list[[1]]
+    fund_id = names(fund_list)
+  } else if (fund == "Parking Management") {
+    fund_list = PFF
+    fund_name = fund_list[[1]]
+    fund_id = names(fund_list)
+ } else if (fund == "Internal Service") {
+   fund_list = ISF
+   fund_name = "Internal Service Fund"
+   fund_id = names(fund_list)
+ } 
+  
+  input <- import_workday(file_name, fund = fund_list) 
 
-#fy22 actuals
-fy22_actuals <- import("G:/Fiscal Years/Fiscal 2022/Projections Year/2. Monthly Expenditure Data/Month 12_June Projections/Expenditure 2022-06_Run7.xlsx", which = "CurrentYearExpendituresActLevel") %>%
-  filter(`Fund ID` == 1001) %>%
-  group_by(`Agency ID`, `Agency Name`, `Program ID`, `Program Name`, `Activity ID`, `Activity Name`, `Fund ID`,
-           `Fund Name`, `Object ID`, `Object Name`, `Subobject ID`, `Subobject Name`) %>%
-  summarise(`FY22 Actual` = sum(`BAPS YTD EXP`, na.rm = TRUE),
-            `FY21 Adopted` = sum(`FY21 Adopted`, na.rm = TRUE),
-            `FY21 Actual` = sum(`FY21 Actual`, na.rm = TRUE))
+  #fy22 actuals
+  fy22_actuals <- import("G:/Fiscal Years/Fiscal 2022/Projections Year/2. Monthly Expenditure Data/Month 12_June Projections/Expenditure 2022-06_Run7.xlsx", which = "CurrentYearExpendituresActLevel") %>%
+    filter(`Fund ID` %in% as.numeric(fund_id)) %>%
+    group_by(`Agency ID`, `Agency Name`, `Program ID`, `Program Name`, `Activity ID`, `Activity Name`, `Fund ID`,
+             `Fund Name`, `Object ID`, `Object Name`, `Subobject ID`, `Subobject Name`) %>%
+    summarise(`FY22 Actual` = sum(`BAPS YTD EXP`, na.rm = TRUE),
+              `FY21 Adopted` = sum(`FY21 Adopted`, na.rm = TRUE),
+              `FY21 Actual` = sum(`FY21 Actual`, na.rm = TRUE))
 
 
 #fy22 appropriation file
 #no special purpose but not a big deal for GF projections
-fy22_adopted <- import("G:/Fiscal Years/Fiscal 2022/Projections Year/1. July 1 Prepwork/Appropriation File/Fiscal 2022 Adopted Appropriation File With Positions and Carry Forwards.xlsx") %>%
-  filter(`Workday Fund ID` == 1001)
+  fy22_adopted <- import("G:/Fiscal Years/Fiscal 2022/Projections Year/1. July 1 Prepwork/Appropriation File/Fiscal 2022 Adopted Appropriation File With Positions and Carry Forwards.xlsx") %>%
+    filter(`Workday Fund ID` == as.numeric(fund_id))
 
 fy22 <- fy22_adopted %>% 
   left_join(fy22_actuals, by = c("Agency ID", "Program ID", "Activity ID", 
@@ -168,10 +202,24 @@ calc.list <- data.frame("Calculations" = c("No Funds Expended", "At Budget", "YT
 
 #export =====================
 #divide by agency and analyst
+get_agency_list <- function(fund = "General Fund") {
+  if (fund == "General Fund") {
+    x <- analysts %>%
+      filter(`Projections` == TRUE) %>%
+      extract2("Workday Agency ID") 
+    } else if (fund == "Internal Service") {
+    x <- analysts %>%
+      filter(`Projections` == TRUE & `ISF` == TRUE) %>%
+      extract2("Workday Agency ID") 
+    } else if (fund == "Parking Management") {
+    x <- analysts %>%
+      filter(`Projections` == TRUE & `Parking Management` == TRUE) %>%
+      extract2("Workday Agency ID") 
+    }
+  return(x)
+  }
 
-x <- analysts %>%
-  filter(`Projections` == TRUE) %>%
-  extract2("Workday Agency ID")
+x <- get_agency_list(fund = "Internal Service")
 
 subset_agency_data <- function(agency_id) {
 
@@ -191,11 +239,6 @@ subset_agency_data <- function(agency_id) {
 agency_data <- map(x, subset_agency_data) %>%
   set_names(x)
 
-# setwd("G:/Analyst Folders/Sara Brumfield/exp_projection_year/0_projections/quarterly_dist/")
-map(x, export_workday, agency_data)
-setwd("G:/Analyst Folders/Sara Brumfield/exp_projection_year/0_projections/")
-
-#export individual files ===============
 export_workday <- function(agency_id, list) {
   agency_id <- as.character(agency_id)
   agency_name <- analysts$`Agency Name - Cleaned`[analysts$`Workday Agency ID`==agency_id]
@@ -248,4 +291,11 @@ export_workday <- function(agency_id, list) {
   message(agency_name, " projections tab exported.")
 }
 
-export_workday("AGC4366", agency_data)
+setwd("G:/Analyst Folders/Sara Brumfield/exp_projection_year/0_projections/quarterly_dist/")
+map(x, export_workday, agency_data)
+setwd("G:/Analyst Folders/Sara Brumfield/exp_projection_year/0_projections/")
+
+#export individual files ===============
+
+
+# export_workday("AGC4366", agency_data)

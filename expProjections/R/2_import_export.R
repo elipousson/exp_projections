@@ -289,7 +289,6 @@ import_workday <- function(file_name = file_name, fund = c("1001 General Fund"))
       `Q1 Obligations` = as.numeric(`Jul Obligations`) + as.numeric(`Aug Obligations`) + as.numeric(`Sep Obligations`) + as.numeric(`Jun 22 Obligations`),
       `Q2 Obligations` = as.numeric(`Oct Obligations`) + as.numeric(`Nov Obligations`) + as.numeric(`Dec Obligations`),
       # `Q3 Actuals` = as.numeric(`Jan Actuals`) + as.numeric(`Feb Actuals`) + as.numeric(`Mar Actuals`),
-      # `Q4 Actuals` = as.numeric(`Apr Actuals`) + as.numeric(`May Actuals`) + as.numeric(`Jun Actuals`),
       `YTD Actuals + Obligations` = `Q1 Actuals` + `Q1 Obligations` + `Q2 Actuals` + `Q2 Obligations`,
       `YTD Actuals` = `Q1 Actuals` + `Q2 Actuals`
     ) %>%
@@ -325,7 +324,7 @@ export_workday <- function(agency_id, list) {
   data <- list[[agency_id]]$line.item %>%
     apply_formula_class(c(cols$proj, cols$surdef)) 
   
-  style <- list(cell.bg = createStyle(fgFill = "pink", border = "TopBottomLeftRight",
+  style <- list(cell.bg = createStyle(fgFill = "lightgreen", border = "TopBottomLeftRight",
                                       borderColour = "black", textDecoration = "bold",
                                       wrapText = TRUE),
                 formula.num = createStyle(numFmt = "#,##0"),
