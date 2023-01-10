@@ -103,16 +103,18 @@ create_projection_files <- function (fund = "General Fund") {
               `FY21 Actual` = sum(`FY21 Actual`, na.rm = TRUE))
 
 ##payroll forward accruals to back out of projection data
-  forward <- import(paste0("inputs/FY", params$fy, " Q", params$qtr, " Payroll Forward Accruals.xlsx"), skip = 15) %>%
-    filter(Fund %in% fund_name & `Ledger Account ID` %in% c("62005", "61005", "22515")) %>%
-    mutate(Month = lubridate::month(`Accounting Date`),
+  forward <- import(paste0("inputs/FY", params$fy, " Q", params$qtr, " Payroll Forward Accruals v2.xlsx"), skip = 26, guess_max = 10000) %>%
+    select(`Cost Center`, Fund, Grant, `Special Purpose`, `Spend Category`, `Ledger Account`, `Ledger Debit Amount`, Journal) %>%
+    filter(Fund %in% fund_name & `Ledger Account` %in% c("62005:Other Personnel Costs", "61005:Salaries", "22515:Accrued Salaries") & !is.na(`Spend Category`)) %>%
+    mutate(`Accounting Date` = lubridate::as_date(substr(Journal, 68,77), format = "%m/%d/%Y"),
+            Month = lubridate::month(`Accounting Date`),
            `Fund ID` = as.numeric(substr(`Fund`, 1, 4)))
   
-  forward_total = sum(forward$`Transaction Debit Amount`, na.rm = TRUE)
+  forward_total = sum(forward$`Ledger Debit Amount`, na.rm = TRUE)
   
   forward %<>%
-    group_by(Agency, Service, `Cost Center`, `Spend Category`, `Fund ID`, Fund, Month) %>%
-    summarise(`Curr. Qtr. Forward Accrual Amt.` = sum(`Transaction Debit Amount`, na.rm = TRUE))
+    group_by(`Cost Center`, `Spend Category`, `Fund ID`, Fund, Grant, `Special Purpose`, Month) %>%
+    summarise(`Curr. Qtr. Forward Accrual Amt.` = sum(`Ledger Debit Amount`, na.rm = TRUE))
   
   forward_check = sum(forward$`Curr. Qtr. Forward Accrual Amt.`, na.rm = TRUE)
   ifelse(forward_total == forward_check, print("Forward accrual join OK."), print("Forward accrual join not OK."))
