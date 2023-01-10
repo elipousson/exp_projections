@@ -112,7 +112,7 @@ create_projection_files <- function (fund = "General Fund") {
   forward_total = sum(forward$`Transaction Debit Amount`, na.rm = TRUE)
   
   forward %<>%
-    group_by(Agency, Service, `Cost Center`, `Spend Category`, `Fund ID`, Fund, Grant, `Special Purpose ID`, Month) %>%
+    group_by(Agency, Service, `Cost Center`, `Spend Category`, `Fund ID`, Fund, Month) %>%
     summarise(`Curr. Qtr. Forward Accrual Amt.` = sum(`Transaction Debit Amount`, na.rm = TRUE))
   
   forward_check = sum(forward$`Curr. Qtr. Forward Accrual Amt.`, na.rm = TRUE)
@@ -123,7 +123,8 @@ create_projection_files <- function (fund = "General Fund") {
     pivot_wider(names_from = Month, values_from = `Curr. Qtr. Forward Accrual Amt.`, values_fn = sum) %>%
     rename(`Aug Forward Accruals` = `8`, `Sep Forward Accruals` = `9`, `Oct Forward Accruals` = `10`, `Nov Forward Accruals` = `11`, `Dec Forward Accruals` = `12`)
   
-  backed_out<- input %>% left_join(forward_pivot, by = c("Agency", "Service", "Cost Center", "Fund ID", "Fund", "Grant", "Special Purpose", "Spend Category")) %>%
+  backed_out<- input %>% left_join(forward_pivot, by = c("Agency", "Service", "Cost Center", "Fund ID", "Fund", "Spend Category")) %>%
+    relocate(`Special Purpose ID`, .before = `Special Purpose`) %>%
     relocate(`Aug Forward Accruals`, .after = `Aug Obligations`) %>%
     relocate(`Sep Forward Accruals`, .after = `Sep Obligations`) %>%
     relocate(`Oct Forward Accruals`, .after = `Oct Obligations`) %>%
@@ -153,6 +154,9 @@ create_projection_files <- function (fund = "General Fund") {
     mutate(Calculation = "",
            `Q2 Actuals - Forward` = `Q2 Actuals` - `YTD Forward Accruals`) %>%
     relocate(`Q2 Actuals - Forward`, .after = `Q2 Actuals`)
+  
+  ##duplicate check
+  ifelse(sum(duplicated(hist_mapped)) > 0, "Duplicated in dataframe.", "No duplicates found in dataframe.")
 
 ##numbers check
 #workday total
@@ -182,7 +186,7 @@ create_projection_files <- function (fund = "General Fund") {
   
   projections <- hist_mapped %>% 
     left_join(prev_calcs, by = c("Agency", "Service", "Cost Center", "Fund", "Grant", "Special Purpose", "Spend Category")) %>%
-    mutate(Calculation = `Q1 Calculation`)
+    mutate(Calculation = !!sym(paste0("Q", params$qtr -1, " Calculation")))
 
 #update col names for new FY
 make_proj_formulas <- function(df, manual = "zero") {
