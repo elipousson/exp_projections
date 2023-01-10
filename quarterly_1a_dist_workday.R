@@ -186,7 +186,7 @@ create_projection_files <- function (fund = "General Fund") {
   
   projections <- hist_mapped %>% 
     left_join(prev_calcs, by = c("Agency", "Service", "Cost Center", "Fund", "Grant", "Special Purpose", "Spend Category")) %>%
-    mutate(Calculation = !!sym(paste0("Q", params$qtr -1, " Calculation")))
+    mutate(Calculation = ifelse(params$qtr != 1, !!sym(paste0("Q", params$qtr -1, " Calculation"))), "")
 
 #update col names for new FY
 make_proj_formulas <- function(df, manual = "zero") {
