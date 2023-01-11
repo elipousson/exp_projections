@@ -291,13 +291,15 @@ import_workday <- function(file_name = file_name, fund = c("1001 General Fund"))
       # `Q3 Actuals` = as.numeric(`Jan Actuals`) + as.numeric(`Feb Actuals`) + as.numeric(`Mar Actuals`),
       `YTD Actuals + Obligations` = `Q1 Actuals` + `Q1 Obligations` + `Q2 Actuals` + `Q2 Obligations`,
       `YTD Actuals` = `Q1 Actuals` + `Q2 Actuals`,
+      `YTD Obligations` = `Q1 Obligations` + `Q2 Obligations`,
       `Special Purpose ID` = substr(`Special Purpose`, 1, 9)) %>%
     select(-matches("(\\...)")) %>%
     relocate(`Q1 Actuals`, .after = `YTD Actuals + Obligations`) %>%
     relocate(`Q1 Obligations`, .after = `Q1 Actuals`) %>%
     relocate(`Q2 Actuals`, .after = `Q1 Obligations`) %>%
     relocate(`Q2 Obligations`, .after = `Q2 Actuals`) %>%
-    relocate(`YTD Actuals`, .after = `Fund ID`)
+    relocate(`YTD Actuals`, .after = `Fund ID`) %>%
+    select(-`Jun 22 Obligations`, -`Jul Obligations`, -`Aug Obligations`,-`Sep Obligations`, -`Oct Obligations`, -`Nov Obligations`, -`Dec Obligations`)
   
   return(input)
 }

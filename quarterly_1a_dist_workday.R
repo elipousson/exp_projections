@@ -105,38 +105,40 @@ create_projection_files <- function (fund = "General Fund") {
 ##payroll forward accruals to back out of projection data
   forward <- import(paste0("inputs/FY", params$fy, " Q", params$qtr, " Payroll Forward Accruals.xlsx"), skip = 15, guess_max = 10000) %>%
     filter(Fund %in% fund_name & `Ledger Account ID` %in% c("62005", "61005", "22515") & !is.na(`Spend Category`)) %>%
-    mutate(Month = lubridate::month(`Accounting Date`),
+    mutate(
+      # Month = lubridate::month(`Accounting Date`),
            `Fund ID` = as.numeric(substr(`Fund`, 1, 4)))
   
   ##debit amount NOT credit or absolute
   forward_total = sum(forward$`Transaction Debit Amount`, na.rm = TRUE)
   
   forward %<>%
-    group_by(Agency, Service, `Cost Center`, `Spend Category`, `Fund ID`, Fund, Month) %>%
-    summarise(`Curr. Qtr. Forward Accrual Amt.` = sum(`Transaction Debit Amount`, na.rm = TRUE))
+    group_by(Agency, Service, `Cost Center`, `Spend Category`, `Fund ID`, Fund) %>%
+    summarise(`YTD Forward Accruals` = sum(`Transaction Debit Amount`, na.rm = TRUE))
   
-  forward_check = sum(forward$`Curr. Qtr. Forward Accrual Amt.`, na.rm = TRUE)
+  forward_check = sum(forward$`YTD Forward Accruals`, na.rm = TRUE)
   ifelse(forward_total == forward_check, print("Forward accrual join OK."), print("Forward accrual join not OK."))
   
   #pivot to get monthly values
-  forward_pivot <- forward %>%
-    pivot_wider(names_from = Month, values_from = `Curr. Qtr. Forward Accrual Amt.`, values_fn = sum) %>%
-    rename(`Aug Forward Accruals` = `8`, `Sep Forward Accruals` = `9`, `Oct Forward Accruals` = `10`, `Nov Forward Accruals` = `11`, `Dec Forward Accruals` = `12`)
+  # forward_pivot <- forward %>%
+  #   pivot_wider(names_from = Month, values_from = `Curr. Qtr. Forward Accrual Amt.`, values_fn = sum) %>%
+  #   rename(`Aug Forward Accruals` = `8`, `Sep Forward Accruals` = `9`, `Oct Forward Accruals` = `10`, `Nov Forward Accruals` = `11`, `Dec Forward Accruals` = `12`)
   
-  backed_out<- input %>% left_join(forward_pivot, by = c("Agency", "Service", "Cost Center", "Fund ID", "Fund", "Spend Category")) %>%
+  backed_out<- input %>% left_join(forward, by = c("Agency", "Service", "Cost Center", "Fund ID", "Fund", "Spend Category")) %>%
     relocate(`Special Purpose ID`, .before = `Special Purpose`) %>%
-    relocate(`Aug Forward Accruals`, .after = `Aug Obligations`) %>%
-    relocate(`Sep Forward Accruals`, .after = `Sep Obligations`) %>%
-    relocate(`Oct Forward Accruals`, .after = `Oct Obligations`) %>%
-    relocate(`Nov Forward Accruals`, .after = `Nov Obligations`) %>%
-    relocate(`Dec Forward Accruals`, .after = `Dec Obligations`) %>%
+    # relocate(`Aug Forward Accruals`, .after = `Aug Obligations`) %>%
+    # relocate(`Sep Forward Accruals`, .after = `Sep Obligations`) %>%
+    # relocate(`Oct Forward Accruals`, .after = `Oct Obligations`) %>%
+    # relocate(`Nov Forward Accruals`, .after = `Nov Obligations`) %>%
+    # relocate(`Dec Forward Accruals`, .after = `Dec Obligations`) %>%
     rowwise() %>%
-    mutate(`YTD Forward Accruals` = sum(`Aug Forward Accruals`, `Sep Forward Accruals`, `Oct Forward Accruals`, `Nov Forward Accruals`, `Dec Forward Accruals`, na.rm = TRUE),
-          `YTD Actuals - Forwards` = `YTD Actuals` - `YTD Forward Accruals`,
+    mutate(`YTD Actuals - Forwards` = `YTD Actuals` - `YTD Forward Accruals`,
            `YTD Act + Obl - Forward` = `YTD Actuals + Obligations` - `YTD Forward Accruals`) %>%
-    relocate(`YTD Forward Accruals`, .before = `YTD Actuals`) %>%
-    relocate(`YTD Actuals - Forwards`, .after = `YTD Actuals`) %>%
-    relocate(`YTD Act + Obl - Forward`, .after = `YTD Actuals + Obligations`)
+    relocate(`YTD Forward Accruals`, .after = `YTD Actuals`) %>%
+    relocate(`YTD Actuals - Forwards`, .after = `YTD Forward Accruals`) %>%
+    relocate(`YTD Obligations`, .after = `YTD Actuals`) %>%
+    relocate(`YTD Act + Obl - Forward`, .after = `YTD Actuals + Obligations`) %>%
+    relocate(`YTD Actuals + Obligations` , .after = `YTD Obligations`)
 
 ##join historic and current data
   hist_mapped <- backed_out %>% left_join(fy22, by = c("Cost Center", "Spend Category", "Fund ID")) %>%
@@ -148,12 +150,10 @@ create_projection_files <- function (fund = "General Fund") {
     relocate(`FY21 Adopted`, .after = `Spend Category`) %>%
     relocate(`FY21 Actual`, .after = `FY21 Adopted`) %>%
     relocate(`FY23 Budget`, .after = `FY22 Total Budget`) %>%
-    relocate(`YTD Actuals + Obligations`, .after = `FY23 Budget`) %>%
-    relocate(`YTD Actuals`, .after = `YTD Actuals + Obligations`) %>%
+    # relocate(`YTD Actuals + Obligations`, .after = `FY23 Budget`) %>%
+    # relocate(`YTD Actuals`, .before = `YTD Actuals + Obligations`) %>%
     relocate(Pillar, .after = `Spend Category`) %>%
-    mutate(Calculation = "",
-           `Q2 Actuals - Forward` = `Q2 Actuals` - `YTD Forward Accruals`) %>%
-    relocate(`Q2 Actuals - Forward`, .after = `Q2 Actuals`)
+    mutate(Calculation = "")
   
   ##duplicate check
   ifelse(sum(duplicated(hist_mapped)) > 0, "Duplicated in dataframe.", "No duplicates found in dataframe.")
@@ -186,7 +186,9 @@ create_projection_files <- function (fund = "General Fund") {
   
   projections <- hist_mapped %>% 
     left_join(prev_calcs, by = c("Agency", "Service", "Cost Center", "Fund", "Grant", "Special Purpose", "Spend Category")) %>%
-    mutate(Calculation = ifelse(params$qtr != 1, !!sym(paste0("Q", params$qtr -1, " Calculation"))), "")
+    mutate(Calculation = ifelse(params$qtr != 1, !!sym(paste0("Q", params$qtr -1, " Calculation")), !!sym(paste0("Q", params$qtr -2, " Calculation")))) %>%
+    select(-`Q1 Calculation`) %>%
+    relocate(`Q1 Projection`, .after = `Q1 Obligations`)
 
 #update col names for new FY
 make_proj_formulas <- function(df, manual = "zero") {
