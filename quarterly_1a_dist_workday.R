@@ -211,6 +211,9 @@ create_projection_files <- function (fund = "General Fund") {
     relocate(`Q1 Projection`, .after = `Q1 Obligations`) %>%
     relocate(`YTD Obligations`, .after = `YTD Actuals`)
 
+  #citywide export before individual files for reference only
+  export_excel(projections, "Citywide Projections", paste0("quarterly_outputs/FY", params$fy, " Q", params$qtr, " Citywide Projection Data ", fund, ".xlsx"))
+  
 #update col names for new FY
 make_proj_formulas <- function(df, manual = "zero") {
   
@@ -253,9 +256,6 @@ make_proj_formulas <- function(df, manual = "zero") {
   calc.list <- data.frame("Calculations" = c("No Funds Expended", "At Budget", "YTD", "Straight", "YTD & Encumbrance", "Manual", "Straight & Encumbrance"))
 
 #export =====================
-#citywide export before individual files
-  export_excel(output, "Citywide Projections", paste0("quarterly_outputs/FY", params$fy, " Q", params$qtr, " Citywide Projections ", fund, ".xlsx"))
-
   #divide by agency and analyst
   ##helper functions
   get_agency_list <- function(fund = fund_name) {
@@ -412,7 +412,7 @@ make_proj_formulas <- function(df, manual = "zero") {
   }
 }
 
-create_projection_files(fund = "Parking Management")
+create_projection_files(fund = "General Fund")
 
 #export individual files ===============
 
