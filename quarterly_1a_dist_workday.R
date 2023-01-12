@@ -142,7 +142,7 @@ create_projection_files <- function (fund = "General Fund") {
     right_join(forward, by = c("Cost Center", "Spend Category", "Fund", "Grant", "Special Purpose")) %>%
     select(-`Fund ID`)
   
-  export_excel(forward_cch, "Forward Accrual Errors by CCH", "quarterly_outputs/FY23 Forward Accrual Errors.xlsx")
+  export_excel(forward_cch, "Forward Accrual Errors by CCH", paste0("quarterly_outputs/FY23 Forward Accrual Errors ", fund_name, ".xlsx"))
   
   #pivot to get monthly values
   # forward_pivot <- forward %>%
@@ -207,8 +207,9 @@ create_projection_files <- function (fund = "General Fund") {
   projections <- hist_mapped %>% 
     left_join(prev_calcs, by = c("Agency", "Service", "Cost Center", "Fund", "Grant", "Special Purpose", "Spend Category")) %>%
     mutate(Calculation = ifelse(params$qtr != 1, !!sym(paste0("Q", params$qtr -1, " Calculation")), !!sym(paste0("Q", params$qtr -2, " Calculation")))) %>%
-    select(-`Q1 Calculation`) %>%
-    relocate(`Q1 Projection`, .after = `Q1 Obligations`)
+    select(-`Q1 Calculation`, -`Special Purpose ID`) %>%
+    relocate(`Q1 Projection`, .after = `Q1 Obligations`) %>%
+    relocate(`YTD Obligations`, .after = `YTD Actuals`)
 
 #update col names for new FY
 make_proj_formulas <- function(df, manual = "zero") {
@@ -252,7 +253,10 @@ make_proj_formulas <- function(df, manual = "zero") {
   calc.list <- data.frame("Calculations" = c("No Funds Expended", "At Budget", "YTD", "Straight", "YTD & Encumbrance", "Manual", "Straight & Encumbrance"))
 
 #export =====================
-#divide by agency and analyst
+#citywide export before individual files
+  export_excel(output, "Citywide Projections", paste0("quarterly_outputs/FY", params$fy, " Q", params$qtr, " Citywide Projections ", fund, ".xlsx"))
+
+  #divide by agency and analyst
   ##helper functions
   get_agency_list <- function(fund = fund_name) {
     if (fund == "1001 General Fund") {
@@ -290,7 +294,7 @@ make_proj_formulas <- function(df, manual = "zero") {
     agency_id <- as.character(agency_id)
     agency_name <- analysts$`Agency Name - Cleaned`[analysts$`Workday Agency ID`==agency_id]
     file_path <- paste0(
-      "quarterly_dist/FY", params$fy, " Q", params$qtr, " - ", agency_name, " ", fund, ".xlsx")
+      "quarterly_dist/FY", params$fy, " Q", params$qtr, " - ", agency_name, " ", fund_name, ".xlsx")
     data <- list[[agency_id]]$line.item %>%
       apply_formula_class(c(cols$proj, cols$surdef)) 
     
