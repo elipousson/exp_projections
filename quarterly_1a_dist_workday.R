@@ -39,7 +39,7 @@ file_name <- paste0("FY", params$fy, " Q", params$qt, " Actuals.xlsx")
 PFF = list("2075" = "2075 Parking Facilities Fund")
 GF = list("1001" = "1001 General Fund")
 ISF = list("2029" = "2029 Building Maintenance Fund", 
-           "2030" ="2030	Mobile Equipment Fund", 
+           "2030" ="2030 Mobile Equipment Fund", 
            "2031" = "2031 Reproduction and Printing Fund", 
            "2032" = "2032 Municipal Post Office Fund", 
            "2036" = "2036	Risk Mgmt: Auto/Animal Liability Fund (Law Dept)", 
@@ -73,7 +73,7 @@ create_projection_files <- function (fund = "General Fund") {
   
   input <- import_workday(file_name, fund = fund_list) 
 
-  #fy22 actuals / no detailed fund available
+  #fy22 actuals / no detailed fund available =================
   fy22_actuals <- import("G:/Fiscal Years/Fiscal 2022/Projections Year/2. Monthly Expenditure Data/Month 12_June Projections/Expenditure 2022-06_Run7.xlsx", which = "CurrentYearExpendituresActLevel") %>%
     filter(if (fund_name == "Internal Service Fund") `Fund ID` == 2000 else `Fund ID` == as.numeric(fund_id)) %>%
     group_by(`Agency ID`, `Agency Name`, `Program ID`, `Program Name`, `Activity ID`, `Activity Name`, `Fund ID`,
@@ -89,20 +89,35 @@ create_projection_files <- function (fund = "General Fund") {
     filter(`Workday Fund ID` %in% as.numeric(fund_id)) 
   
 #join data sets together
-  fy22 <- fy22_adopted %>% 
-    left_join(fy22_actuals, by = c("Agency ID", "Program ID", "Activity ID", 
-                                   "Fund ID", "Object ID", "Subobject ID")) %>%
-    mutate(`Cost Center` = paste0(`Workday Cost Center ID (Phase II)`, " ", `Workday Cost Center Name`),
-           `Spend Category` = paste0(`Workday Spend Category ID`, " - ", `Workday Spend Category Name`)) %>%
-    select(`Cost Center`, `Spend Category`, `Fund ID`, `FY22 Adopted`, `FY22 Total Budget`, `FY22 Actual`, `FY21 Adopted`, `FY21 Actual`) %>%
-    group_by(`Cost Center`, `Spend Category`, `Fund ID`) %>%
-    summarise(`FY22 Adopted` = sum(`FY22 Adopted`, na.rm = TRUE),
-              `FY22 Total Budget` = sum(`FY22 Total Budget`, na.rm = TRUE),
-              `FY22 Actual` = sum(`FY22 Actual`, na.rm = TRUE),
-              `FY21 Adopted` = sum(`FY21 Adopted`, na.rm = TRUE),
-              `FY21 Actual` = sum(`FY21 Actual`, na.rm = TRUE))
+  if (fund != "Internal Service") {
+    fy22 <- fy22_adopted %>% 
+      left_join(fy22_actuals, by = c("Agency ID", "Program ID", "Activity ID", 
+                                     "Fund ID", "Object ID", "Subobject ID")) %>%
+      mutate(`Cost Center` = paste0(`Workday Cost Center ID (Phase II)`, " ", `Workday Cost Center Name`),
+             `Spend Category` = paste0(`Workday Spend Category ID`, " - ", `Workday Spend Category Name`)) %>%
+      select(`Cost Center`, `Spend Category`, `Fund ID`, `FY22 Adopted`, `FY22 Total Budget`, `FY22 Actual`, `FY21 Adopted`, `FY21 Actual`) %>%
+      group_by(`Cost Center`, `Spend Category`, `Fund ID`) %>%
+      summarise(`FY22 Adopted` = sum(`FY22 Adopted`, na.rm = TRUE),
+                `FY22 Total Budget` = sum(`FY22 Total Budget`, na.rm = TRUE),
+                `FY22 Actual` = sum(`FY22 Actual`, na.rm = TRUE),
+                `FY21 Adopted` = sum(`FY21 Adopted`, na.rm = TRUE),
+                `FY21 Actual` = sum(`FY21 Actual`, na.rm = TRUE)) } else {
+                  ##need to group by Workday Fund ID since no Detailed Fund available in actuals
+                  fy22 <- fy22_adopted %>% 
+                    left_join(fy22_actuals, by = c("Agency ID", "Program ID", "Activity ID", 
+                                                   "Fund ID", "Object ID", "Subobject ID")) %>%
+                    mutate(`Cost Center` = paste0(`Workday Cost Center ID (Phase II)`, " ", `Workday Cost Center Name`),
+                           `Spend Category` = paste0(`Workday Spend Category ID`, " - ", `Workday Spend Category Name`)) %>%
+                    select(`Cost Center`, `Spend Category`, `Workday Fund ID`, `FY22 Adopted`, `FY22 Total Budget`, `FY22 Actual`, `FY21 Adopted`, `FY21 Actual`) %>%
+                    group_by(`Cost Center`, `Spend Category`, `Workday Fund ID`) %>%
+                    summarise(`FY22 Adopted` = sum(`FY22 Adopted`, na.rm = TRUE),
+                              `FY22 Total Budget` = sum(`FY22 Total Budget`, na.rm = TRUE),
+                              `FY22 Actual` = sum(`FY22 Actual`, na.rm = TRUE),
+                              `FY21 Adopted` = sum(`FY21 Adopted`, na.rm = TRUE),
+                              `FY21 Actual` = sum(`FY21 Actual`, na.rm = TRUE))            
+                }
 
-##payroll forward accruals to back out of projection data
+##payroll forward accruals to back out of projection data =====================
   # forward <- import(paste0("inputs/FY", params$fy, " Q", params$qtr, " Payroll Forward Accruals.xlsx"), skip = 15, guess_max = 10000) %>%
   #   filter(Fund %in% fund_name & `Ledger Account ID` %in% c("62005", "61005", "22515") & !is.na(`Spend Category`)) %>%
   #   mutate(
@@ -160,7 +175,8 @@ create_projection_files <- function (fund = "General Fund") {
   #   relocate(`YTD Act + Obl - Forward`, .after = `YTD Actuals + Obligations`) %>%
   #   relocate(`YTD Actuals + Obligations` , .after = `YTD Obligations`)
 
-##join historic and current data
+##join historic and current data ==================
+  if (fund != "Internal Service") {
   hist_mapped <- input %>% left_join(fy22, by = c("Cost Center", "Spend Category", "Fund ID")) %>%
     select(-`Fund ID`) %>%
     rename(`FY23 Budget` = Budget) %>%
@@ -173,7 +189,21 @@ create_projection_files <- function (fund = "General Fund") {
     # relocate(`YTD Actuals + Obligations`, .after = `FY23 Budget`) %>%
     # relocate(`YTD Actuals`, .before = `YTD Actuals + Obligations`) %>%
     relocate(Pillar, .after = `Spend Category`) %>%
-    mutate(Calculation = "")
+    mutate(Calculation = "") } else {
+      hist_mapped <- input %>% left_join(fy22, by =  c("Cost Center", "Spend Category", "Fund ID" = "Workday Fund ID")) %>%
+        select(-`Fund ID`) %>%
+        rename(`FY23 Budget` = Budget) %>%
+        relocate(`FY22 Adopted`, .after = `Spend Category`) %>%
+        relocate(`FY22 Total Budget`, .after = `FY22 Adopted`) %>%
+        relocate(`FY22 Actual`, .after = `FY22 Adopted`) %>%
+        relocate(`FY21 Adopted`, .after = `Spend Category`) %>%
+        relocate(`FY21 Actual`, .after = `FY21 Adopted`) %>%
+        relocate(`FY23 Budget`, .after = `FY22 Total Budget`) %>%
+        # relocate(`YTD Actuals + Obligations`, .after = `FY23 Budget`) %>%
+        # relocate(`YTD Actuals`, .before = `YTD Actuals + Obligations`) %>%
+        relocate(Pillar, .after = `Spend Category`) %>%
+        mutate(Calculation = "") 
+    }
   
   ##duplicate check
   ifelse(sum(duplicated(hist_mapped)) > 0, "Duplicated in dataframe.", "No duplicates found in dataframe.")
@@ -194,7 +224,7 @@ create_projection_files <- function (fund = "General Fund") {
   join_23_budget <- sum(hist_mapped$`FY23 Budget`, na.rm = TRUE)
   join_23_actual <- sum(hist_mapped$`YTD Actuals + Obligations`, na.rm = TRUE)
   
-  ifelse(gf_2022 == gf_bpfs_22_adopted, print("FY22 budget OK."), print("FY22 budget not OK."))
+  ifelse(gf_2022 == gf_bpfs_22_adopted, print("FY22 budget OK."), print("FY22 budget not OK. Or not General Funds."))
   ifelse(gf_total == join_23_budget, print("FY23 budget join OK."), print(paste0("FY23 budget join not OK. Off by ", gf_total - join_23_budget)))
   ifelse(gf_spent == join_23_actual, print("FY23 actuals join OK."), print(paste0("FY23 actuals join not OK. Off by ", gf_spent - join_23_actual)))
 
@@ -206,7 +236,8 @@ create_projection_files <- function (fund = "General Fund") {
   
   projections <- hist_mapped %>% 
     left_join(prev_calcs, by = c("Agency", "Service", "Cost Center", "Fund", "Grant", "Special Purpose", "Spend Category")) %>%
-    mutate(Calculation = ifelse(params$qtr != 1, !!sym(paste0("Q", params$qtr -1, " Calculation")), !!sym(paste0("Q", params$qtr -2, " Calculation")))) %>%
+    # mutate(Calculation = ifelse(params$qtr != 1, !!sym("Q1 Calculation"), !!sym("Q3 Calculation"))) %>%
+    mutate(Calculation = `Q1 Calculation`) %>%
     select(-`Q1 Calculation`, -`Special Purpose ID`) %>%
     relocate(`Q1 Projection`, .after = `Q1 Obligations`) %>%
     relocate(`YTD Obligations`, .after = `YTD Actuals`)
@@ -290,11 +321,15 @@ make_proj_formulas <- function(df, manual = "zero") {
       return(data)
   }
   
-  export_workday <- function(agency_id, list) {
+  export_workday <- function(agency_id, list, draft = FALSE) {
     agency_id <- as.character(agency_id)
     agency_name <- analysts$`Agency Name - Cleaned`[analysts$`Workday Agency ID`==agency_id]
-    file_path <- paste0(
-      "quarterly_dist/FY", params$fy, " Q", params$qtr, " - ", agency_name, " ", fund_name, ".xlsx")
+    
+    file_path <- ifelse(draft == TRUE, 
+                        paste0("quarterly_dist/FY", params$fy, " Q", params$qtr, " - ", agency_name, " ", fund_name, ".xlsx"), 
+                        paste0(
+        "G:/Agencies/", agency_name, "/File Distribution/FY", params$fy, " Q", params$qtr, " - ", agency_name, " ", fund_name, ".xlsx"))
+    
     data <- list[[agency_id]]$line.item %>%
       apply_formula_class(c(cols$proj, cols$surdef)) 
     
@@ -412,9 +447,9 @@ make_proj_formulas <- function(df, manual = "zero") {
   }
 }
 
-create_projection_files(fund = "General Fund")
+create_projection_files(fund = "Internal Service")
 
 #export individual files ===============
 
 
-export_workday("AGC2300", agency_data)
+export_workday("AGC2600", agency_data)
