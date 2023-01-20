@@ -255,7 +255,7 @@ make_proj_formulas <- function(df, manual = "zero") {
     mutate(
       `Projection` =
         paste0(
-          'IF([', cols$calc, ']="At Budget",[FY23 Budget], IF([', cols$calc, ']="YTD", [YTD Actuals], IF([', cols$calc, ']="No Funds Expended", 0, IF([', cols$calc, ']="Straight", ([Q', params$qtr, ' Actuals]/', params$fiscal_month, ')*12, IF([', cols$calc, ']="YTD & Encumbrance", [YTD Actuals + Obligations], IF([', cols$calc, ']="Manual", 0, IF([', cols$calc, ']="Straight & Encumbrance", (([Q', params$qtr, ' Actuals]/', params$fiscal_month, ')*12) + [Q', params$qtr,' Obligations])))))))'),
+          'IF([', cols$calc, ']="At Budget",[FY23 Budget], IF([', cols$calc, ']="YTD", [YTD Actuals], IF([', cols$calc, ']="No Funds Expended", 0, IF([', cols$calc, ']="Straight", ([YTD Actuals]/', params$fiscal_month, ')*12, IF([', cols$calc, ']="YTD & Encumbrance", [YTD Actuals + Obligations], IF([', cols$calc, ']="Manual", 0, IF([', cols$calc, ']="Straight & Encumbrance", (([YTD Actuals]/', params$fiscal_month, ')*12) + [YTD Obligations])))))))'),
       `Surplus/Deficit` = paste0("[FY23 Budget] - [", cols$proj, "]"))
   
 }
