@@ -2,9 +2,9 @@
 
 params <- list(
   fy = 23,
-  qtr = 1,
+  qtr = 2,
   calendar_year = 22,
-  calendar_month = 3,
+  calendar_month = 6, ##from start of FY??
   # NA if there is no edited compiled file / file path
   compiled_edit = NA)
 
@@ -39,9 +39,9 @@ source("G:/Analyst Folders/Sara Brumfield/_packages/bbmR/R/bbmr_colors.R")
 internal <- setup_internal(proj = "quarterly")
 
 internal$analyst_files <- if (params$qtr == 1) {
-  paste0("G:/Fiscal Years/Fiscal 20", params$fy, "/Projections Year/4. Quarterly Projections/", params$qtr, "st Quarter/4. Expenditure Backup")} else if (params$qtr == 2) {
-    paste0("G:/Fiscal Years/Fiscal 20", params$fy, "/Projections Year/4. Quarterly Projections/", params$qtr+1, "nd Quarter/4. Expenditure Backup")} else if (params$qtr == 3) {
-      paste0("G:/Fiscal Years/Fiscal 20", params$fy, "/Projections Year/4. Quarterly Projections/", params$qtr+2, "rd Quarter/4. Expenditure Backup")} 
+  paste0("G:/Fiscal Years/Fiscal 20", params$fy, "/Projections Year/4. Quarterly Projections/1st Quarter/4. Expenditure Backup")} else if (params$qtr == 2) {
+    paste0("G:/Fiscal Years/Fiscal 20", params$fy, "/Projections Year/4. Quarterly Projections/", params$qtr, "nd Quarter/4. Expenditure Backup")} else if (params$qtr == 3) {
+      paste0("G:/Fiscal Years/Fiscal 20", params$fy, "/Projections Year/4. Quarterly Projections/", params$qtr+1, "rd Quarter/4. Expenditure Backup")} 
 
 cols <- list(calc = paste0("Q", params$qtr, " Calculation"),
              proj = paste0("Q", params$qtr, " Projection"),
@@ -73,7 +73,7 @@ if (is.na(params$compiled_edit)) {
   if (params$qt > 1) {
     compiled <- compiled %>%
       mutate(!!paste0("Q", params$qt - 1, " Surplus/Deficit") := 
-               `Total Budget` - !!sym(paste0("Q", params$qt - 1, " Projection")),
+               `FY23 Budget` - !!sym(paste0("Q", params$qt - 1, " Projection")),
              !!paste0("Q", params$qt, " vs Q", params$qt - 1, " Projection Diff") := 
                !!sym(internal$col.surdef) - !!sym(paste0("Q", params$qt - 1, " Surplus/Deficit")))
   }
@@ -115,13 +115,13 @@ compiled <- compiled %>% filter(Fund == "1001 General Fund")
 # Validation ####
 
 ##remove payroll forward
-data <- compiled %>% left_join(back_out, by = c("Agency", "Service", "Cost Center", "Fund", "Grant", "Special Purpose", "Spend Category")) %>%
-  relocate(`Forward Accrual`, .after = `Q1 Actuals`) %>%
-  mutate(`Q1 Actual (Clean)` = `Q1 Actuals` - `Forward Accrual`) %>%
-  relocate(`Q1 Actual (Clean)`, .after = `Forward Accrual`)
+# data <- compiled %>% left_join(back_out, by = c("Agency", "Service", "Cost Center", "Fund", "Grant", "Special Purpose", "Spend Category")) %>%
+#   relocate(`Forward Accrual`, .after = `Q1 Actuals`) %>%
+#   mutate(`Q1 Actual (Clean)` = `Q1 Actuals` - `Forward Accrual`) %>%
+#   relocate(`Q1 Actual (Clean)`, .after = `Forward Accrual`)
 
 ##save $$ for next quarter
-export_excel(data, "Q1 Forward Accrual", "quarterly_outputs/FY23 Q2 Forward Accruals.xlsx")
+# export_excel(data, "Q1 Forward Accrual", paste0("quarterly_outputs/FY23 Q", params$qtr+1, " Forward Accruals.xlsx"))
 
 # which agency files are missing?
 compiled_gf <- compiled %>% filter(Fund == "1001 General Fund")
@@ -147,9 +147,9 @@ analysts = analysts$Analyst[!analysts$`Agency` %in% compiled_gf$Agency])
   # mutate(Difference = `Compiled Total Budget` - `Total Budget`) %>%
   # filter(`Total Budget` != `Compiled Total Budget`)
 
-if (nrow(totals) > 0) {
-  export_excel(totals, "Mismatched Totals", internal$output, "existing") 
-}
+# if (nrow(totals) > 0) {
+#   export_excel(totals, "Mismatched Totals", internal$output, "existing") 
+# }
 
 
 
@@ -160,8 +160,12 @@ chiefs_report <- calc_chiefs_report_workday(df) %>%
 library(plotly)
 trace("orca", edit = TRUE)
 
+#set colors
+colors = bbmR::colors$hex
+
 #margins on plots need fixing, especially for negative values
+##manually adjust bar_anno_col values
 rmarkdown::render('r/Chiefs_Report.Rmd',
                   output_file = paste0("FY", params$fy,
-                                       " Q", params$qt, " Chiefs Report.pdf"),
-                  output_dir = 'quarterly_outputs/')
+                                       " Q", params$qtr, " Chiefs Report.pdf"),
+                  output_dir = 'G://Analyst Folders/Sara Brumfield/quarterly_reports/exp_projections/quarterly_outputs')

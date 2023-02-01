@@ -49,13 +49,15 @@ ISF = list("2029" = "2029 Building Maintenance Fund",
            "2042" = "2042 Municipal Communication Fund", 
            "2043" = "2043	Risk Mgmt: Property Liability & Administration Fund", 
            "2046" = "Risk Mgmt: Worker's Compensation Fund (Law Dept)")
+BCIT = list("2037" = "2037 Hardware & Software Replacement Fund", 
+            "2042" = "2042 Municipal Communication Fund")
 
 #analyst assignments/universal/not fund dependent
 analysts <- import("G:/Analyst Folders/Sara Brumfield/_ref/Analyst Assignments.xlsx") %>%
   filter(Projections == TRUE)
 
 #read in data ===============
-##"General Fund", "Parking Management", "Internal Service" // defaults to GF
+##"General Fund", "Parking Management", "Internal Service", "BCIT" // defaults to GF
 create_projection_files <- function (fund = "General Fund") {
   if (fund == "General Fund") {
     fund_list = GF
@@ -69,11 +71,23 @@ create_projection_files <- function (fund = "General Fund") {
    fund_list = ISF
    fund_name = "Internal Service Fund"
    fund_id = names(fund_list)
- } 
+ } else if (fund == "BCIT") {
+   fund_list = BCIT
+   fund_name = "BCIT"
+   fund_id = names(fund_list)
+ }
   
   input <- import_workday(file_name, fund = fund_list) 
 
   #fy22 actuals / no detailed fund available =================
+  fund_ids <- if (fund_name == "Internal Service Fund") {
+    fund_id = 2000
+  } else if( fund_name == "BCIT") {
+    c(2042, 2037)
+  } else {
+    as.numeric(fund_id)
+  }
+  
   fy22_actuals <- import("G:/Fiscal Years/Fiscal 2022/Projections Year/2. Monthly Expenditure Data/Month 12_June Projections/Expenditure 2022-06_Run7.xlsx", which = "CurrentYearExpendituresActLevel") %>%
     filter(if (fund_name == "Internal Service Fund") `Fund ID` == 2000 else `Fund ID` == as.numeric(fund_id)) %>%
     group_by(`Agency ID`, `Agency Name`, `Program ID`, `Program Name`, `Activity ID`, `Activity Name`, `Fund ID`,
@@ -176,33 +190,39 @@ create_projection_files <- function (fund = "General Fund") {
   #   relocate(`YTD Actuals + Obligations` , .after = `YTD Obligations`)
 
 ##join historic and current data ==================
-  if (fund != "Internal Service") {
-  hist_mapped <- input %>% left_join(fy22, by = c("Cost Center", "Spend Category", "Fund ID")) %>%
-    select(-`Fund ID`) %>%
-    rename(`FY23 Budget` = Budget) %>%
-    relocate(`FY22 Adopted`, .after = `Spend Category`) %>%
-    relocate(`FY22 Total Budget`, .after = `FY22 Adopted`) %>%
-    relocate(`FY22 Actual`, .after = `FY22 Adopted`) %>%
-    relocate(`FY21 Adopted`, .after = `Spend Category`) %>%
-    relocate(`FY21 Actual`, .after = `FY21 Adopted`) %>%
-    relocate(`FY23 Budget`, .after = `FY22 Total Budget`) %>%
-    # relocate(`YTD Actuals + Obligations`, .after = `FY23 Budget`) %>%
-    # relocate(`YTD Actuals`, .before = `YTD Actuals + Obligations`) %>%
-    relocate(Pillar, .after = `Spend Category`) %>%
-    mutate(Calculation = "") } else {
-      hist_mapped <- input %>% left_join(fy22, by =  c("Cost Center", "Spend Category", "Fund ID" = "Workday Fund ID")) %>%
-        select(-`Fund ID`) %>%
-        rename(`FY23 Budget` = Budget) %>%
-        relocate(`FY22 Adopted`, .after = `Spend Category`) %>%
-        relocate(`FY22 Total Budget`, .after = `FY22 Adopted`) %>%
-        relocate(`FY22 Actual`, .after = `FY22 Adopted`) %>%
-        relocate(`FY21 Adopted`, .after = `Spend Category`) %>%
-        relocate(`FY21 Actual`, .after = `FY21 Adopted`) %>%
-        relocate(`FY23 Budget`, .after = `FY22 Total Budget`) %>%
-        # relocate(`YTD Actuals + Obligations`, .after = `FY23 Budget`) %>%
-        # relocate(`YTD Actuals`, .before = `YTD Actuals + Obligations`) %>%
-        relocate(Pillar, .after = `Spend Category`) %>%
-        mutate(Calculation = "") 
+  if (fund == "Internal Service") {
+    hist_mapped <- input %>% left_join(fy22, by =  c("Cost Center", "Spend Category", "Fund ID" = "Workday Fund ID")) %>%
+      select(-`Fund ID`) %>%
+      rename(`FY23 Budget` = Budget) %>%
+      relocate(`FY22 Adopted`, .after = `Spend Category`) %>%
+      relocate(`FY22 Total Budget`, .after = `FY22 Adopted`) %>%
+      relocate(`FY22 Actual`, .after = `FY22 Adopted`) %>%
+      relocate(`FY21 Adopted`, .after = `Spend Category`) %>%
+      relocate(`FY21 Actual`, .after = `FY21 Adopted`) %>%
+      relocate(`FY23 Budget`, .after = `FY22 Total Budget`) %>%
+      # relocate(`YTD Actuals + Obligations`, .after = `FY23 Budget`) %>%
+      # relocate(`YTD Actuals`, .before = `YTD Actuals + Obligations`) %>%
+      relocate(Pillar, .after = `Spend Category`) %>%
+      mutate(Calculation = "") 
+  } else if(fund == "BCIT") {
+    hist_mapped <- input %>%
+      select(-`Fund ID`) %>%
+      rename(`FY23 Budget` = Budget) %>%
+      mutate(Calculation = "")
+    } else {
+    hist_mapped <- input %>% left_join(fy22, by = c("Cost Center", "Spend Category", "Fund ID")) %>%
+      select(-`Fund ID`) %>%
+      rename(`FY23 Budget` = Budget) %>%
+      relocate(`FY22 Adopted`, .after = `Spend Category`) %>%
+      relocate(`FY22 Total Budget`, .after = `FY22 Adopted`) %>%
+      relocate(`FY22 Actual`, .after = `FY22 Adopted`) %>%
+      relocate(`FY21 Adopted`, .after = `Spend Category`) %>%
+      relocate(`FY21 Actual`, .after = `FY21 Adopted`) %>%
+      relocate(`FY23 Budget`, .after = `FY22 Total Budget`) %>%
+      # relocate(`YTD Actuals + Obligations`, .after = `FY23 Budget`) %>%
+      # relocate(`YTD Actuals`, .before = `YTD Actuals + Obligations`) %>%
+      relocate(Pillar, .after = `Spend Category`) %>%
+      mutate(Calculation = "")
     }
   
   ##duplicate check
@@ -260,6 +280,7 @@ make_proj_formulas <- function(df, manual = "zero") {
   
 }
 
+if (fund != "BCIT") {
   output <- projections %>%
     make_proj_formulas() %>%
     rename(!!cols$calc := Calculation,
@@ -268,7 +289,16 @@ make_proj_formulas <- function(df, manual = "zero") {
            `FY22 Budget` = `FY22 Total Budget`) %>%
     relocate(`Workday Agency ID`, .before = `Agency`) %>%
     relocate(Notes, .after = !!cols$surdef) %>%
-    select(-Pillar)
+    select(-Pillar) } else {
+      output <- projections %>%
+        make_proj_formulas() %>%
+        rename(!!cols$calc := Calculation,
+               !!cols$proj := Projection,
+               !!cols$surdef := `Surplus/Deficit`) %>%
+        relocate(`Workday Agency ID`, .before = `Agency`) %>%
+        relocate(Notes, .after = !!cols$surdef) %>%
+        select(-Pillar)
+    }
   
   if (params$qtr == 1) {
     output <- output %>%
@@ -302,6 +332,10 @@ make_proj_formulas <- function(df, manual = "zero") {
       x <- analysts %>%
         filter(`Projections` == TRUE & `Parking Management` == TRUE) %>%
         extract2("Workday Agency ID") 
+      } else if (fund == "BCIT") {
+        x <- analysts %>%
+          filter(`Projections` == TRUE & `BCIT` == TRUE) %>%
+          extract2("Workday Agency ID") 
       }
     return(x)
     }
@@ -447,7 +481,7 @@ make_proj_formulas <- function(df, manual = "zero") {
   }
 }
 
-create_projection_files(fund = "Internal Service")
+create_projection_files(fund = "BCIT")
 
 #export individual files ===============
 
