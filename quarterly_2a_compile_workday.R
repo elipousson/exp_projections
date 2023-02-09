@@ -70,7 +70,7 @@ if (is.na(params$compiled_edit)) {
     mutate(!!sym(internal$col.surdef) := !!sym(paste0("FY", params$fy, " Budget")) - !!sym(internal$col.proj)) %>%
     filter(!is.na(`Cost Center`))
   
-  if (params$qt > 1) {
+  if (params$qtr > 1) {
     compiled <- compiled %>%
       mutate(!!paste0("Q", params$qt - 1, " Surplus/Deficit") := 
                `FY23 Budget` - !!sym(paste0("Q", params$qt - 1, " Projection")),
@@ -83,7 +83,7 @@ if (is.na(params$compiled_edit)) {
   
   df <- compiled %>%
     # ... but keep only general fund here bc we generally only project for GF // need to include PABC?
-    # filter(`Fund` == "1001 General Fund") %>%
+    filter(`Fund` == "1001 General Fund") %>%
     group_by(Agency, Service, `Cost Center`, Fund, Grant, 
              `Special Purpose`, `Spend Category`,
              !!sym(internal$col.calc)) %>%
@@ -111,7 +111,7 @@ if (is.na(params$compiled_edit)) {
 }
 
 ## if GF only is needed
-compiled <- compiled %>% filter(Fund == "1001 General Fund")
+# compiled <- compiled %>% filter(Fund == "1001 General Fund")
 # Validation ####
 
 ##remove payroll forward
@@ -126,7 +126,7 @@ compiled <- compiled %>% filter(Fund == "1001 General Fund")
 # which agency files are missing?
 compiled_gf <- compiled %>% filter(Fund == "1001 General Fund")
 missing = list.zip(agencies = unique(analysts$`Agency`)[!unique(analysts$`Agency`) %in% compiled_gf$Agency],
-analysts = analysts$Analyst[!analysts$`Agency` %in% compiled_gf$Agency])
+                    analysts = analysts$Analyst[!analysts$`Agency` %in% compiled_gf$Agency])
 
 ## add Total Budget check; helps with identifying deleted line items / doubled agency files=================
 ##won't work because no accurate xwalk with BAPS files / replaced with Workday file

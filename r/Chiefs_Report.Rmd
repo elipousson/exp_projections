@@ -88,7 +88,7 @@ ledger %>%
   arrange(label) %>%
   format_plot(
     type = "bar_group", set_scale = "m", title = "Quarterly Projection vs Budget", margin_t = 50, show_y = TRUE, 
-    set_min_y = -100000000, set_max_y = 500000000, legend_y = -.1, bar_anno_y = 50000000,,
+    set_min_y = -150000000, set_max_y = 1600000000, legend_y = -.1, bar_anno_y = 90000000,
     bar_anno_col = "Q2 Surplus/Deficit", bar_anno_word_positive = " surplus", bar_anno_word_negative = " deficit") %>%
   # export_plotly("ledger", width = "950", height = "500")
   orca(file = "ledger.pdf", width = "800", height = "400")
