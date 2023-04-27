@@ -194,14 +194,14 @@ create_projection_files <- function (fund = "General Fund") {
 #add excel formula for calculations ==================
 #bring in previous quarter's calcs
   prev_calcs <- import(ifelse(params$qtr != 1, paste0("quarterly_outputs/FY23 Q", params$qtr-1," Analyst Calcs.csv"), paste0("quarterly_outputs/FY", params$fy-1, " Q4 Analyst Calcs.csv"))) %>%
-    select(Agency:`Spend Category`, `Q1 Calculation`, `Q1 Projection`, Notes)
+    select(Agency:`Spend Category`, `Q2 Calculation`, `Q2 Projection`, Notes)
   
   projections <- hist_mapped %>% 
     left_join(prev_calcs, by = c("Agency", "Service", "Cost Center", "Fund", "Grant", "Special Purpose", "Spend Category")) %>%
     # mutate(Calculation = ifelse(params$qtr != 1, !!sym("Q1 Calculation"), !!sym("Q3 Calculation"))) %>%
-    mutate(Calculation = `Q1 Calculation`) %>%
-    select(-`Q1 Calculation`, -`Special Purpose ID`) %>%
-    relocate(`Q1 Projection`, .after = `Q1 Obligations`) %>%
+    mutate(Calculation = `Q2 Calculation`) %>%
+    select(-`Q2 Calculation`, -`Special Purpose ID`) %>%
+    relocate(`Q2 Projection`, .after = `Q2 Obligations`) %>%
     relocate(`YTD Obligations`, .after = `YTD Actuals`)
 
   #citywide export before individual files for reference only
