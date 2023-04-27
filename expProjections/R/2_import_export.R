@@ -248,45 +248,43 @@ run_summary_reports_workday <- function(df) {
 
 
 import_workday <- function(file_name = file_name, fund = c("1001 General Fund")) {
-  input <- import(paste0("inputs/", file_name), skip = 8) %>%
-    filter(Fund %in% fund) %>%
+  input <- import(paste0("inputs/", file_name), skip = 9) %>%
+    filter(Fund %in% fund_list) %>%
     select(-`...10`, -`Total Spent`) %>%
     mutate(`Workday Agency ID` = str_extract(Agency, pattern = "(AGC\\d{4})"),
            `Fund ID`= as.numeric(substr(Fund, 1, 4))) %>%
     ##manually adjust columns by date for now
-    rename(`Jun 22 Actuals` = `Actuals...13`,
-           `Jul Actuals` = `Actuals...16`,
-           `Aug Actuals` =  `Actuals...19`,
-           `Sep Actuals` =  `Actuals...22`,
-           `Oct Actuals` = `Actuals...25`,
-           `Nov Actuals` = `Actuals...28`,
-           `Dec Actuals` =  `Actuals...31`,
-           # `Jan Actuals` = `Actuals...32`,
-           # `Feb Actuals` =  `Actuals...35`,
-           # `Mar Actuals` =  `Actuals...38`,
+    rename(`Jul Actuals` = `Actuals...13`,
+           `Aug Actuals` =  `Actuals...16`,
+           `Sep Actuals` =  `Actuals...19`,
+           `Oct Actuals` = `Actuals...22`,
+           `Nov Actuals` = `Actuals...25`,
+           `Dec Actuals` =  `Actuals...28`,
+           `Jan Actuals` = `Actuals...31`,
+           `Feb Actuals` =  `Actuals...34`,
+           `Mar Actuals` =  `Actuals...37`,
            # `Apr Actuals` = `Actuals...41`,
            # `May Actuals` = `Actuals...44`,
            # `Jun Actuals` = `Actuals...47`,
-           `Jun 22 Obligations` = `Obligations...14`,
-           `Jul Obligations` = `Obligations...17`,
-           `Aug Obligations` =  `Obligations...20`,
-           `Sep Obligations` =  `Obligations...23`,
-           `Oct Obligations` = `Obligations...26`,
-           `Nov Obligations` = `Obligations...29`,
-           `Dec Obligations` =  `Obligations...32`
-           # `Jan Obligations` = `Obligations...33`,
-           # `Feb Obligations` =  `Obligations...36`,
-           # `Mar Obligations` =  `Obligations...39`,
+           `Jul Obligations` = `Obligations...14`,
+           `Aug Obligations` =  `Obligations...17`,
+           `Sep Obligations` =  `Obligations...20`,
+           `Oct Obligations` = `Obligations...23`,
+           `Nov Obligations` = `Obligations...26`,
+           `Dec Obligations` =  `Obligations...29`,
+           `Jan Obligations` = `Obligations...32`,
+           `Feb Obligations` =  `Obligations...35`,
+           `Mar Obligations` =  `Obligations...38`
            # `Apr Obligations` = `Obligations...42`,
            # `May Obligations` = `Obligations...45`,
            # `Jun Obligations` = `Obligations...48`
     ) %>%
     mutate(
       #includes June
-      `Q1 Actuals` = as.numeric(`Jul Actuals`) + as.numeric(`Aug Actuals`) + as.numeric(`Sep Actuals`) + as.numeric(`Jun 22 Actuals`),
+      `Q1 Actuals` = as.numeric(`Jul Actuals`) + as.numeric(`Aug Actuals`) + as.numeric(`Sep Actuals`),
       `Q2 Actuals` = as.numeric(`Oct Actuals`) + as.numeric(`Nov Actuals`) + as.numeric(`Dec Actuals`),
       #includes June
-      `Q1 Obligations` = as.numeric(`Jul Obligations`) + as.numeric(`Aug Obligations`) + as.numeric(`Sep Obligations`) + as.numeric(`Jun 22 Obligations`),
+      `Q1 Obligations` = as.numeric(`Jul Obligations`) + as.numeric(`Aug Obligations`) + as.numeric(`Sep Obligations`),
       `Q2 Obligations` = as.numeric(`Oct Obligations`) + as.numeric(`Nov Obligations`) + as.numeric(`Dec Obligations`),
       # `Q3 Actuals` = as.numeric(`Jan Actuals`) + as.numeric(`Feb Actuals`) + as.numeric(`Mar Actuals`),
       `YTD Actuals + Obligations` = `Q1 Actuals` + `Q1 Obligations` + `Q2 Actuals` + `Q2 Obligations`,
@@ -299,7 +297,7 @@ import_workday <- function(file_name = file_name, fund = c("1001 General Fund"))
     relocate(`Q2 Actuals`, .after = `Q1 Obligations`) %>%
     relocate(`Q2 Obligations`, .after = `Q2 Actuals`) %>%
     relocate(`YTD Actuals`, .after = `Fund ID`) %>%
-    select(-`Jun 22 Obligations`, -`Jul Obligations`, -`Aug Obligations`,-`Sep Obligations`, -`Oct Obligations`, -`Nov Obligations`, -`Dec Obligations`)
+    select(-`Jul Obligations`, -`Aug Obligations`,-`Sep Obligations`, -`Oct Obligations`, -`Nov Obligations`, -`Dec Obligations`)
   
   return(input)
 }

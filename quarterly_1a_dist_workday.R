@@ -18,11 +18,11 @@ source("expProjections/R/1_apply_excel_formulas.R")
 options("openxlsx.numFmt" = "#,##0")
 
 ##distribution prep ==============
-params <- list(qtr = 2,
+params <- list(qtr = 3,
                fy = 23,
-               fiscal_month = 6,
-               calendar_month = 12,
-               calendar_year = 22)
+               fiscal_month = 9,
+               calendar_month = 3,
+               calendar_year = 23)
 
 cols <- list(calc = paste0("Q", params$qtr, " Calculation"),
              proj = paste0("Q", params$qtr, " Projection"),
@@ -130,64 +130,6 @@ create_projection_files <- function (fund = "General Fund") {
                               `FY21 Adopted` = sum(`FY21 Adopted`, na.rm = TRUE),
                               `FY21 Actual` = sum(`FY21 Actual`, na.rm = TRUE))            
                 }
-
-##payroll forward accruals to back out of projection data =====================
-  # forward <- import(paste0("inputs/FY", params$fy, " Q", params$qtr, " Payroll Forward Accruals.xlsx"), skip = 15, guess_max = 10000) %>%
-  #   filter(Fund %in% fund_name & `Ledger Account ID` %in% c("62005", "61005", "22515") & !is.na(`Spend Category`)) %>%
-  #   mutate(
-  #     # Month = lubridate::month(`Accounting Date`),
-  #          `Fund ID` = as.numeric(substr(`Fund`, 1, 4)))
-  forward <- import(paste0("inputs/FY", params$fy, " Q", params$qtr, " Payroll Forward Accruals Errors.xlsx"), skip = 26, guess_max = 10000) %>%
-    select(`Cost Center`, Fund, Grant, `Special Purpose`, `Spend Category`, `Ledger Account`, `Ledger Credit Amount`, Journal) %>%
-    filter(Fund %in% fund_name & !is.na(`Spend Category`)) %>%
-    mutate(`Accounting Date` = lubridate::as_date(substr(Journal, 68,77), format = "%m/%d/%Y"),
-           Month = lubridate::month(`Accounting Date`),
-           `Fund ID` = as.numeric(substr(`Fund`, 1, 4)),
-           Grant = case_when(is.na(Grant) ~ "",
-                             TRUE ~ Grant),
-           `Special Purpose` = case_when(is.na(`Special Purpose`) ~ "",
-                                         TRUE ~ `Special Purpose`))
-  
-  forward_total = sum(forward$`Ledger Credit Amount`, na.rm = TRUE)
-  
-  forward %<>%
-    group_by(`Cost Center`, `Spend Category`, `Fund ID`, Fund, Grant, `Special Purpose`) %>%
-    summarise(`YTD Forward Errors` = sum(`Ledger Credit Amount`, na.rm = TRUE))
-  
-  forward_check = sum(forward$`YTD Forward Errors`, na.rm = TRUE)
-  ifelse(forward_total == forward_check, print("Forward accrual join OK."), print("Forward accrual join not OK."))
-  
-  ##add cost center hierarchy
-  cch <- import(paste0("inputs/", file_name), skip = 8) %>%
-    select(Agency:`Spend Category`) %>%
-    mutate(Grant = case_when(Grant == "(Blank)" ~ "",
-                             TRUE ~ Grant),
-           `Special Purpose` = case_when(`Special Purpose` == "(Blank)" ~ "",
-                                         TRUE ~ `Special Purpose`)) %>%
-    distinct() %>%
-    filter(!is.na(Agency) & !is.na(Service) & !is.na(`Cost Center`) & !is.na(`Spend Category`))
-  
-  forward_cch <- cch %>%
-    right_join(forward, by = c("Cost Center", "Spend Category", "Fund", "Grant", "Special Purpose")) %>%
-    select(-`Fund ID`)
-  
-  export_excel(forward_cch, "Forward Accrual Errors by CCH", paste0("quarterly_outputs/FY23 Forward Accrual Errors ", fund_name, ".xlsx"))
-  
-  #pivot to get monthly values
-  # forward_pivot <- forward %>%
-  #   pivot_wider(names_from = Month, values_from = `Curr. Qtr. Forward Accrual Amt.`, values_fn = sum) %>%
-  #   rename(`Aug Forward Accruals` = `8`, `Sep Forward Accruals` = `9`, `Oct Forward Accruals` = `10`, `Nov Forward Accruals` = `11`, `Dec Forward Accruals` = `12`)
-  
-  # backed_out<- input %>% left_join(forward_cch, by = c("Agency", "Service", "Cost Center", "Fund ID", "Fund", "Spend Category")) %>%
-  #   relocate(`Special Purpose ID`, .before = `Special Purpose`) %>%
-  #   rowwise() %>%
-  #   mutate(`YTD Actuals - Forwards` = `YTD Actuals` - `YTD Forward Accruals`,
-  #          `YTD Act + Obl - Forward` = `YTD Actuals + Obligations` - `YTD Forward Accruals`) %>%
-  #   relocate(`YTD Forward Accruals`, .after = `YTD Actuals`) %>%
-  #   relocate(`YTD Actuals - Forwards`, .after = `YTD Forward Accruals`) %>%
-  #   relocate(`YTD Obligations`, .after = `YTD Actuals`) %>%
-  #   relocate(`YTD Act + Obl - Forward`, .after = `YTD Actuals + Obligations`) %>%
-  #   relocate(`YTD Actuals + Obligations` , .after = `YTD Obligations`)
 
 ##join historic and current data ==================
   if (fund == "Internal Service") {
@@ -481,7 +423,7 @@ if (fund != "BCIT") {
   }
 }
 
-create_projection_files(fund = "BCIT")
+create_projection_files(fund = "General Fund")
 
 #export individual files ===============
 
