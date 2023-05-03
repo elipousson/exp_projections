@@ -85,7 +85,7 @@ export_analyst_calcs_workday <- function(df) {
   if (nrow(check) > 0) {
     warning("There are ", nrow(check), " duplicated line item calculations")
     export_excel(check, "Duplicate", "quarterly_outputs/Duplicate Calcs.xlsx")
-  }
+  } else {warning("No duplicate caculations found.")}
   
   cc_check <- df %>%
     select(Agency, Service, `Cost Center`)%>%
