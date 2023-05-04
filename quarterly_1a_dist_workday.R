@@ -423,9 +423,8 @@ if (fund != "BCIT") {
   }
 }
 
-create_projection_files(fund = "General Fund")
+create_projection_files(fund = "Parking Management")
 
 #export individual files ===============
-
 
 export_workday("AGC2600", agency_data)

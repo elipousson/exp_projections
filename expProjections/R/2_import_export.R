@@ -263,9 +263,9 @@ import_workday <- function(file_name = file_name, fund = c("1001 General Fund"))
            `Jan Actuals` = `Actuals...31`,
            `Feb Actuals` =  `Actuals...34`,
            `Mar Actuals` =  `Actuals...37`,
-           # `Apr Actuals` = `Actuals...41`,
-           # `May Actuals` = `Actuals...44`,
-           # `Jun Actuals` = `Actuals...47`,
+           # `Apr Actuals` = `Actuals...40`,
+           # `May Actuals` = `Actuals...43`,
+           # `Jun Actuals` = `Actuals...46`,
            `Jul Obligations` = `Obligations...14`,
            `Aug Obligations` =  `Obligations...17`,
            `Sep Obligations` =  `Obligations...20`,
@@ -280,22 +280,23 @@ import_workday <- function(file_name = file_name, fund = c("1001 General Fund"))
            # `Jun Obligations` = `Obligations...48`
     ) %>%
     mutate(
-      #includes June
       `Q1 Actuals` = as.numeric(`Jul Actuals`) + as.numeric(`Aug Actuals`) + as.numeric(`Sep Actuals`),
       `Q2 Actuals` = as.numeric(`Oct Actuals`) + as.numeric(`Nov Actuals`) + as.numeric(`Dec Actuals`),
-      #includes June
+      `Q3 Actuals` = as.numeric(`Jan Actuals`) + as.numeric(`Feb Actuals`) + as.numeric(`Mar Actuals`),
       `Q1 Obligations` = as.numeric(`Jul Obligations`) + as.numeric(`Aug Obligations`) + as.numeric(`Sep Obligations`),
       `Q2 Obligations` = as.numeric(`Oct Obligations`) + as.numeric(`Nov Obligations`) + as.numeric(`Dec Obligations`),
-      # `Q3 Actuals` = as.numeric(`Jan Actuals`) + as.numeric(`Feb Actuals`) + as.numeric(`Mar Actuals`),
-      `YTD Actuals + Obligations` = `Q1 Actuals` + `Q1 Obligations` + `Q2 Actuals` + `Q2 Obligations`,
-      `YTD Actuals` = `Q1 Actuals` + `Q2 Actuals`,
-      `YTD Obligations` = `Q1 Obligations` + `Q2 Obligations`,
+      `Q3 Obligations` = as.numeric(`Jan Obligations`) + as.numeric(`Feb Obligations`) + as.numeric(`Mar Obligations`),
+      `YTD Actuals + Obligations` = `Q1 Actuals` + `Q1 Obligations` + `Q2 Actuals` + `Q2 Obligations` + `Q3 Actuals` + `Q3 Obligations`,
+      `YTD Actuals` = `Q1 Actuals` + `Q2 Actuals` + `Q3 Actuals`,
+      `YTD Obligations` = `Q1 Obligations` + `Q2 Obligations` + `Q3 Obligations`,
       `Special Purpose ID` = substr(`Special Purpose`, 1, 9)) %>%
     select(-matches("(\\...)")) %>%
     relocate(`Q1 Actuals`, .after = `YTD Actuals + Obligations`) %>%
     relocate(`Q1 Obligations`, .after = `Q1 Actuals`) %>%
     relocate(`Q2 Actuals`, .after = `Q1 Obligations`) %>%
     relocate(`Q2 Obligations`, .after = `Q2 Actuals`) %>%
+    relocate(`Q3 Actuals`, .after = `Q2 Obligations`) %>%
+    relocate(`Q3 Obligations`, .after = `Q3 Actuals`) %>%
     relocate(`YTD Actuals`, .after = `Fund ID`) %>%
     select(-`Jul Obligations`, -`Aug Obligations`,-`Sep Obligations`, -`Oct Obligations`, -`Nov Obligations`, -`Dec Obligations`)
   
