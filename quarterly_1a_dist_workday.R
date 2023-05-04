@@ -88,6 +88,7 @@ create_projection_files <- function (fund = "General Fund") {
     as.numeric(fund_id)
   }
   
+  #change to BPFS?
   fy22_actuals <- import("G:/Fiscal Years/Fiscal 2022/Projections Year/2. Monthly Expenditure Data/Month 12_June Projections/Expenditure 2022-06_Run7.xlsx", which = "CurrentYearExpendituresActLevel") %>%
     filter(if (fund_name == "Internal Service Fund") `Fund ID` == 2000 else `Fund ID` == as.numeric(fund_id)) %>%
     group_by(`Agency ID`, `Agency Name`, `Program ID`, `Program Name`, `Activity ID`, `Activity Name`, `Fund ID`,
@@ -194,7 +195,7 @@ create_projection_files <- function (fund = "General Fund") {
 #add excel formula for calculations ==================
 #bring in previous quarter's calcs
   prev_calcs <- import(ifelse(params$qtr != 1, paste0("quarterly_outputs/FY23 Q", params$qtr-1," Analyst Calcs.csv"), paste0("quarterly_outputs/FY", params$fy-1, " Q4 Analyst Calcs.csv"))) %>%
-    select(Agency:`Spend Category`, `Q2 Calculation`, `Q2 Projection`, Notes)
+    select(Agency:`Spend Category`, `Q2 Calculation`, `Q2 Projection`, Notes, -`BPFS Object`)
   
   projections <- hist_mapped %>% 
     left_join(prev_calcs, by = c("Agency", "Service", "Cost Center", "Fund", "Grant", "Special Purpose", "Spend Category")) %>%
@@ -423,7 +424,7 @@ if (fund != "BCIT") {
   }
 }
 
-create_projection_files(fund = "Parking Management")
+create_projection_files()
 
 #export individual files ===============
 
