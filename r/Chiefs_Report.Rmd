@@ -84,14 +84,16 @@ ledger %>%
 ```{r Ledger Account Summary Graph, fig.align='center'}
 
 ledger %>%
-  select(label = `Ledger Summary`, `FY23 Budget`, `Q1 Projection`, `Q1 Surplus/Deficit`) %>%
+  select(label = `Ledger Summary`, `FY23 Budget`, !!sym(paste0("Q", params$qtr, " Projection")), !!sym(paste0("Q", params$qtr, " Surplus/Deficit"))) %>%
   arrange(label) %>%
   format_plot(
-    type = "bar_group", set_scale = "m", title = "Quarterly Surplus/Deficit vs Budget", margin_t = 50,
-    bar_anno_col = "Q1 Surplus/Deficit", bar_anno_word_positive = " surplus", bar_anno_word_negative = " deficit") %>%
-  orca(file = paste0("quarterly_outputs/plots/", "ledger", ".pdf"), width = "800", height = "400")
+    type = "bar_group", set_scale = "m", title = "Quarterly Projection vs Budget", margin_t = 50, show_y = TRUE, 
+    set_min_y = -150000000, set_max_y = 1600000000, legend_y = -.1, bar_anno_y = 90000000,
+    bar_anno_col = "Q2 Surplus/Deficit", bar_anno_word_positive = " surplus", bar_anno_word_negative = " deficit") %>%
+  # export_plotly("ledger", width = "950", height = "500")
+  orca(file = "ledger.pdf", width = "800", height = "400")
 
-include_graphics(paste0("quarterly_outputs/plots/", "ledger", ".pdf"))
+include_graphics("ledger.pdf")
 
 # ledger %>%
 #   select(label = `Pillar Name`, `Total Budget`, `Q1 Projection`, `Q1 Surplus/Deficit`) %>%
