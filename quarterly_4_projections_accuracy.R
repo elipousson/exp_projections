@@ -14,6 +14,7 @@ library(openxlsx)
 
 devtools::load_all("G:/Analyst Folders/Sara Brumfield/bbmR")
 devtools::load_all("G:/Budget Publications/automation/0_data_prep/bookHelpers")
+
 devtools::load_all("G:/Analyst Folders/Sara Brumfield/exp_projection_year/projections/expProjections/")
 
 params <- list(fy = 22,
@@ -26,7 +27,7 @@ last_year <- import("G:/Analyst Folders/Sara Brumfield/exp_projection_year/proje
 #most recent expenditure data for desired FY
 expend <- import("G:/Fiscal Years/Fiscal 2022/Projections Year/2. Monthly Expenditure Data/Month 12_June Projections/Expenditure 2022-06.xlsx") %>%
   filter(!is.na(`Agency ID`),
-         `Fund Name` == "General") %>% 
+         `Fund Name` == "General") %>%
   mutate_at(vars(ends_with("ID")), as.character)
 
 totals <- expend %>%
@@ -72,49 +73,49 @@ bbmR::export_excel(projections, "Overview",
 
 ## Roll up presentation ======================
 prep_data <- function(df, type) {
-  
+
   if (type != "Citywide") {
     group <- c("FY Total Budget", "FY Actual", NULL, type)
-    
+
     df <- df %>%
       group_by_at(type) %>%
-      summarize_if(is.numeric, sum, na.rm = TRUE) 
-    
+      summarize_if(is.numeric, sum, na.rm = TRUE)
+
   } else {
     group <- c("FY Total Budget", "FY Actual")
-    
+
     df <- df %>%
-      summarize_if(is.numeric, sum, na.rm = TRUE) 
+      summarize_if(is.numeric, sum, na.rm = TRUE)
   }
 ##adjust average calculation denominator based on # quarters included
   df <- df %>%
     pivot_longer(starts_with("Q")) %>%
     separate(name, into = c("Quarter", "Type"), sep = " ", extra = "merge") %>%
     pivot_wider(names_from = "Type", values_from = "value") %>%
-    bind_total_row(total_col = "Quarter", total_name = "Avg.", 
+    bind_total_row(total_col = "Quarter", total_name = "Avg.",
                    group_col = c("FY Total Budget", "FY Actual", group)) %>%
     mutate(Projection = ifelse(Quarter == "Avg.", Projection / params$qtr, Projection),
            Difference = ifelse(Quarter == "Avg.", Difference / params$qtr, Difference),
            `Percent Change` = Difference / `FY Actual`)
-  
+
   if (type != "Citywide") {
     df <- df %>%
       arrange(!!sym(type))
   }
-  
+
   check <- df %>%
     filter(Quarter == "Avg.") %>%
     summarize_at(vars(`FY Total Budget`, `FY Actual`), sum, na.rm = TRUE)
-  
+
   assert_that(check$`FY Total Budget` == totals$`FY Total Budget`,
               check$`FY Actual` == totals$`FY Actual`)
-  
+
   return(df)
 }
 
 make_pyramid_chart <- function(df, type) {
   df %>%
-    ggplot(aes(x = Quarter, y = `Percent Change`)) + 
+    ggplot(aes(x = Quarter, y = `Percent Change`)) +
     geom_bar(stat = "identity") +
     facet_wrap(as.formula(paste0("~`", type, "`")), ncol = 1, scales = "free") +
     scale_y_continuous(
@@ -127,7 +128,7 @@ make_pyramid_chart <- function(df, type) {
     geom_hline(yintercept = c(-.11, .11), color = "#FF0D0D", size = 1.2) +
     coord_flip(ylim = c(-.25, .25)) +
     theme_minimal() +
-    theme(axis.line.x = element_line(arrow = grid::arrow(length = unit(0.3, "cm"), 
+    theme(axis.line.x = element_line(arrow = grid::arrow(length = unit(0.3, "cm"),
                                                          ends = "both")),
           axis.title.x = element_text(angle = 0),
           plot.margin = margin(0, 50, 0, 0))
