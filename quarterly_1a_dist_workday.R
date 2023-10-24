@@ -20,7 +20,6 @@ source("expProjections/R/1_set_calcs.R")
 source("expProjections/R/1_subset.R")
 source("expProjections/R/1_write_excel_formulas.R")
 source("expProjections/R/2_import_export.R")
-source("expProjections/R/2_make_chiefs_report.R")
 source("expProjections/R/2_rename_factor_object.R")
 source("expProjections/R/1_apply_excel_formulas.R")
 
@@ -52,9 +51,9 @@ file_name <- paste0("inputs/FY", params$fy, " Q", params$qt, " Actuals.xlsx")
 
 raw <- import(file_name, skip = 10) %>%
   filter(`Cost Center` != "Total" & Fund == "1001 General Fund") %>%
-  rename(`Jul 23 Actuals` = `Actuals...29`, `Jul 23 Obligations` = `Obligations...30`,
-         `Aug 23 Actuals` = `Actuals...32`, `Aug 23 Obligations` = `Obligations...33`,
-         `Sep 23 Actuals` = `Actuals...35`, `Sep 23 Obligations` = `Obligations...36`,
+  rename(`Jul 23 Actuals` = `Actuals...32`, `Jul 23 Obligations` = `Obligations...33`,
+         `Aug 23 Actuals` = `Actuals...35`, `Aug 23 Obligations` = `Obligations...36`,
+         `Sep 23 Actuals` = `Actuals...38`, `Sep 23 Obligations` = `Obligations...39`,
          `FY24 Budget` = `Revised Budget`) %>%
   select(Agency, Service, `Cost Center`, Fund, Grant, `Special Purpose`, `BPFS Object`, `Spend Category`, 
          `Jul 23 Actuals`:`Sep 23 Obligations`, `FY24 Budget`, -starts_with("Commitments"))
@@ -70,7 +69,8 @@ raw <- import(file_name, skip = 10) %>%
          `Jul 23 Actuals`:`Sep 23 Obligations`, `FY24 Budget`, -starts_with("Commitments"))
 
 hist_data <- import("inputs/FY23 Historical Data.csv", skip = 10) %>%
-  select(Agency, Service, `Cost Center`, Fund, Grant, `Special Purpose`, `Spend Category`, `Revised Budget`, `Total Spent`, `Total Actuals`) %>%
+  select(Agency, Service, `Cost Center`, Fund, Grant, `Special Purpose`, `Spend Category`, 
+         `Revised Budget`, `Total Spent`, `Total Actuals`) %>%
   filter(`Cost Center` != "Total" & Fund %in% c("2075 Parking Facilities Fund", "2076 Parking Management Fund (General Fund)")) %>%
   group_by(`Agency`, `Service`, `Cost Center`, `Fund`, `Grant`, `Special Purpose`, `Spend Category`) %>%
   summarise_at(vars(`Revised Budget`, `Total Spent`, `Total Actuals`), sum, na.rm = TRUE) %>%
@@ -133,7 +133,7 @@ projections <- projections %>%
   rename(`Q1 Calculation` = `Q3 Calculation`) %>%
   mutate(`Workday Agency ID` = str_sub(Agency, start = 1, end = 7)) %>%
   select(`Workday Agency ID`, Agency, Service, `Cost Center`, Fund, Grant, `Special Purpose`, `BPFS Object`, `Spend Category`, 
-         `FY23 Actuals`, `FY23 Budget`, `FY24 Budget`,
+         `FY23 Actuals`, `FY23 Budget`, `FY24 Budget`, `Jul 23 Actuals`:`Sep 23 Obligations`,
          `YTD Actuals`, `YTD Obligations`, `YTD Spend`, `Q1 Calculation`, Notes) %>%
   filter(!is.na(`FY24 Budget`)) 
 
