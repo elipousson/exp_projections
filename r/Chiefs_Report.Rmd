@@ -1,32 +1,4 @@
 ---
-header-includes:
-  - \usepackage{atkinson}
-  - \renewcommand\familydefault{\sfdefault}
-  - \usepackage[T1]{fontenc}
-  - \usepackage{booktabs}
-  - \usepackage{longtable}
-  - \usepackage{array}
-  - \usepackage{fancyhdr}
-  - \usepackage{makecell}
-  - \usepackage{multirow}
-  - \usepackage{wrapfig}
-  - \usepackage{float}
-  - \usepackage{colortbl}
-  - \usepackage{tabu}
-  - \usepackage{threeparttable}
-  - \usepackage{threeparttablex}
-  - \usepackage[normalem]{ulem}
-  - \usepackage{makecell}
-  - \usepackage{lastpage}
-  - \usepackage{lipsum}
-  - \pagestyle{fancy}
-  - \fancyhead[C]{Fiscal 20`r params$fy` Operating Budget Surplus/Deficit Projection}
-  - \fancyhead[R]{Quarter `r params$qt`}
-  - \fancyfoot[C]{\footnotesize Page \thepage\, of\, \pageref*{LastPage}}
-  - \renewcommand{\headrulewidth}{0pt}
-
-
----
 classoption: landscape
 geometry: left=.25in,right=.25in,top=.7in,bottom=.7in
 header-includes:
@@ -72,176 +44,11 @@ options(knitr.table.format = "latex",
         knitr.kable.NA = '')
 ```
 
-### By Pillar
+```{r Agency Table, fig.align = "center"}
 
-```{r, fig.align = "center"}
-
-chiefs_table %>%
-  mutate(`Surplus/Deficit` = `YTD Exp` - `Q3 Projection`) %>%
-  bookHelpers::format_table_numbers() %>%
-  kable(booktabs = TRUE, longtable = TRUE, align = c('l', rep('r', 4))) %>%
-  row_spec(0,  bold = TRUE) %>%
-  kable_styling(latex_options = c("repeat_header"), font_size = 10)
-```
-
-```{r, fig.align = "center", out.width = '60%'}
-pillar <- chiefs_table %>%
-  group_by(`Pillar Name`) %>%
-  summarize_if(is.numeric, sum)
-
-pillar %>%
-  select(label = `Pillar Name`, value = `Q3 Projection`) %>%
-  arrange(label) %>%
-  bookHelpers::format_plot(
-    type = "pie", set_scale = "m", format = "percent", pie_total = TRUE, margin_b = 20,
-    margin_l = 10, margin_r = 5, margin_t = .5, font_size = 14) %>%
-  bookHelpers::export_plotly("pillars", width = "950", height = "500")
-```
-<!-- \newpage -->
-```{r}
-# vline <- function(x = 0, color = "black") {
-#   list(
-#     type = "line",
-#     y0 = 0,
-#     y1 = 1,
-#     yref = "paper",
-#     x0 = x,
-#     x1 = x,
-#     line = list(color = color)
-#   )
-# }
-#
-# df <- chiefs_report %>% filter(`Service` == "AGENCY TOTAL") %>%
-#   select(`Agency`, `Q3 Surplus/Deficit`) %>%
-#   rename(label = `Agency`, value = `Q3 Surplus/Deficit`)
-#
-# df$value <- as.numeric(df$value)
-  # mutate(across(value, ~replace_na(.x,0))) %>%
-  # format_number(value, negative_parens = FALSE, dollar_sign = FALSE, suffix = "none", scale = NULL)
-#
-# fig <- plot_ly(x = ~df$value, y = ~df$label, type = "bar", orientation = "h",
-#                #text = paste(round(df$value/1000, 2), "K"),
-#                text = df$value,
-#                #textposition = 'outside',
-#                color = ~df$value > 0,
-#                colors = c("orange", "navy"))
-#
-# fig <- fig %>% layout(yaxis = list(title = "", showgrid = FALSE, showline = FALSE, showticklabels = TRUE),
-#                       xaxis = list(title = "Surplus/Deficit"
-#                                    #,range = c(min(df$value), max(df$value)*1.15)
-#                                    ),
-#                       #shapes = list(vline(0.0)),
-#                       showlegend = FALSE,
-#                       title = "Quarterly Surplus/Deficit by Agency")
-#
-# fig %>% export_plotly("quarterly_agency_overview", format = ".pdf")
-```
-<!-- \newpage -->
-```{r, fig.align = "center", fig.height=2}
-
-# plot <- pillar %>% filter(`Pillar Name`=="Building Public Safety") %>%
-#   select(`FY20 Actual`, `FY21 Actual`, `Total Budget`, `Q3 Projection`)
-
-# plot <- plot %>% t()%>%
-#   as.data.frame() %>%
-#    rownames_to_column %>%
-#   mutate(diff = V1 - lag(V1, default = first(V1)))
-#
-# fig <- plot_ly(x = ~plot$rowname, y = ~plot$V1, type = "bar", #mode = "text",
-#                text = ~plot$V1,
-#                textposition = "outside",
-#                text_template = "%{text:$,s}")
-#
-# fig <- fig %>% layout(title = "Building Public Safety Quarterly Projection",
-#          xaxis = list(title = ""),
-#          yaxis = list(title = ""),
-#          annotations = list(x = plot$rowname,
-#                             y = plot$V1,
-#                             text = paste("Difference: ", plot$diff),
-#                             xref = "x",
-#                             yref = "y",
-#                             showarrow = FALSE,
-#                             ax = 20,
-#                             ay = -20))
-#
-
-# fig %>% bookHelpers::export_plotly("pillars_public_safety", width = "950", height = "500")
-  # bookHelpers::format_plot(
-  #   "bar_group", set_scale = "m", set_min_y = 0, set_max_y = 1200000000,  margin_b = 50,
-  #   bar_anno_col = "Q3 Surplus/Deficit",
-  #   bar_anno_word_positive = " surplus", bar_anno_word_negative = " deficit") %>%
-  # bookHelpers::export_plotly("pillars_public_safety", width = "950", height = "500")
-```
-
-<!-- \newpage -->
-<!-- ```{r, fig.align = "center", fig.height=2} -->
-<!-- pillar %>% filter(`Pillar Name`=="Prioritizing Our Youth") %>% -->
-<!--   select(label = -`YTD Exp`) %>% -->
-<!--   bookHelpers::format_plot( -->
-<!--     "bar_group", set_scale = "m", set_min_y = 0, set_max_y = 500000000,  margin_b = 50,  -->
-<!--     bar_anno_col = "Q2 Surplus/Deficit",  -->
-<!--     bar_anno_word_positive = " surplus", bar_anno_word_negative = " deficit") %>% -->
-<!--   bookHelpers::export_plotly("pillars_youth", width = "950", height = "500") -->
-<!-- ``` -->
-<!-- \newpage -->
-
-<!-- ```{r, fig.align = "center", fig.height=2} -->
-<!-- pillar %>% filter(`Pillar Name`=="Clean and Healthy Communities") %>% -->
-<!--   select(label = -`YTD Exp`) %>% -->
-<!--   bookHelpers::format_plot( -->
-<!--     "bar_group", set_scale = "m", set_min_y = 0, set_max_y = 400000000,  margin_b = 50,  -->
-<!--     bar_anno_col = "Q2 Surplus/Deficit",  -->
-<!--     bar_anno_word_positive = " surplus", bar_anno_word_negative = " deficit") %>% -->
-<!--   bookHelpers::export_plotly("pillars_clean", width = "950", height = "500") -->
-<!-- ``` -->
-<!-- \newpage -->
-
-<!-- ```{r, fig.align = "center", fig.height=2} -->
-<!-- pillar %>% filter(`Pillar Name`=="Responsible Stewardship of City Resources") %>% -->
-<!--   select(label = -`YTD Exp`) %>% -->
-<!--   bookHelpers::format_plot( -->
-<!--     "bar_group", set_scale = "m", set_min_y = 0, set_max_y = 225000000,  margin_b = 50,  -->
-<!--     bar_anno_col = "Q2 Surplus/Deficit",  -->
-<!--     bar_anno_word_positive = " surplus", bar_anno_word_negative = " deficit") %>% -->
-<!--   bookHelpers::export_plotly("pillars_resources", width = "950", height = "500") -->
-<!-- ``` -->
-<!-- \newpage -->
-
-<!-- ```{r, fig.align = "center", fig.height=2} -->
-<!-- pillar %>% filter(`Pillar Name`=="Equitable Neighborhood Development") %>% -->
-<!--   select(label = -`YTD Exp`) %>% -->
-<!--   bookHelpers::format_plot( -->
-<!--     "bar_group", set_scale = "m", set_min_y = 0, set_max_y = 100000000,  margin_b = 50,  -->
-<!--     bar_anno_col = "Q2 Surplus/Deficit",  -->
-<!--     bar_anno_word_positive = " surplus", bar_anno_word_negative = " deficit") %>% -->
-<!--   bookHelpers::export_plotly("pillars_equity", width = "950", height = "500") -->
-<!-- ``` -->
-<!-- \newpage -->
-
-<!-- ```{r, fig.align = "center", fig.height=2} -->
-<!-- pillar %>% filter(`Pillar Name`=="Other") %>% -->
-<!--   select(label = -`YTD Exp`) %>% -->
-<!--   bookHelpers::format_plot( -->
-<!--     "bar_group", set_scale = "m", set_min_y = 0, set_max_y = 400000000,  margin_b = 50,  -->
-<!--     bar_anno_col = "Q2 Surplus/Deficit",  -->
-<!--     bar_anno_word_positive = " surplus", bar_anno_word_negative = " deficit") %>% -->
-<!--   bookHelpers::export_plotly("pillars_other", width = "950", height = "500") -->
-<!-- ``` -->
-<!-- \newpage -->
-
-<!-- ```{r, fig.align = "center"} -->
-<!-- #troubleshoot -->
-<!-- #pillar %>% filter(is.na(`Pillar Name`)) %>% -->
-<!-- #  select(label = `Pillar Name`, `Total Budget`, `Q2 Projection`, `Q2 Surplus/Deficit`) %>% -->
-<!-- #  bookHelpers::format_plot( -->
-<!-- #    "bar_group", set_scale = "m", set_min_y = 0, set_max_y = 50000000,  margin_b = 50,  -->
-<!-- #    bar_anno_col = "Q2 Surplus/Deficit",  -->
-<!-- #    bar_anno_word_positive = " surplus", bar_anno_word_negative = " deficit") %>% -->
-<!-- #  bookHelpers::export_plotly("pillars_other", width = "950", height = "500") -->
-<!-- ``` -->
-\newpage
-```{r }
-kable(chiefs_report, booktabs = TRUE, longtable = TRUE, align = c('l', 'l', rep('r', 8))) %>%
+chiefs_report %>%
+  select(-`FY23 Actuals`, -`YTD Actuals`) %>%
+kable(booktabs = TRUE, longtable = TRUE, align = c('l', 'l', rep('r', 8))) %>%
   collapse_rows(1:2, row_group_label_position = 'stack', longtable_clean_cut = FALSE,
               latex_hline = "major", headers_to_remove = 1:2) %>%
   row_spec(0,  bold = TRUE) %>%
@@ -263,13 +70,14 @@ ledger_summary <- import("G:/Analyst Folders/Sara Brumfield/_ref/Ledger Summary 
 select(`Spend Category`, `Ledger Summary`)
 
 ledger <- compiled %>%
-  select(`Spend Category`, !!sym(paste0("FY", params$fy-2, " Actual")), !!sym(paste0("FY", params$fy-1, " Actual")),
+  select(`Spend Category`, !!sym(paste0("FY", params$fy-1, " Actuals")), `YTD Actuals`,
          !!sym(paste0("FY", params$fy, " Budget")), !!sym(internal$col.proj), !!sym(internal$col.surdef)) %>%
   left_join(ledger_summary, by = "Spend Category") %>%
   group_by(`Ledger Summary`) %>%
   summarize_if(is.numeric, sum) %>%
   mutate(`Ledger Summary` = case_when(is.na(`Ledger Summary`) ~ "Blank",
-                                      TRUE ~ `Ledger Summary`))
+                                      TRUE ~ `Ledger Summary`)) %>%
+  adorn_totals()
 
 ledger %>%
   format_table_numbers() %>%
@@ -281,51 +89,13 @@ ledger %>%
 ```{r Ledger Account Summary Graph, fig.align='center'}
 
 ledger %>%
-  select(label = `Ledger Summary`, `FY23 Budget`, !!sym(paste0("Q", params$qtr, " Projection")), !!sym(paste0("Q", params$qtr, " Surplus/Deficit"))) %>%
+  select(label = `Ledger Summary`, !!sym(paste0("FY", params$fy, " Budget")), !!sym(paste0("Q", params$qtr, " Projection")), !!sym(paste0("Q", params$qtr, " Surplus/Deficit"))) %>%
   arrange(label) %>%
   format_plot(
     type = "bar_group", set_scale = "m", title = "Quarterly Projection vs Budget", margin_t = 50, show_y = TRUE,
-    set_min_y = -150000000, set_max_y = 1600000000, legend_y = -.1, bar_anno_y = 90000000,
-    bar_anno_col = "Q2 Surplus/Deficit", bar_anno_word_positive = " surplus", bar_anno_word_negative = " deficit") %>%
-  # export_plotly("ledger", width = "950", height = "500")
+    set_min_y = -200000000, set_max_y = 1600000000, legend_y = -.1, bar_anno_y = 150000000,
+    bar_anno_col = "Q1 Surplus/Deficit", bar_anno_word_positive = " surplus", bar_anno_word_negative = " deficit") %>%
   orca(file = "ledger.pdf", width = "800", height = "400")
 
 include_graphics("ledger.pdf")
-
-# ledger %>%
-#   select(label = `Pillar Name`, `Total Budget`, `Q1 Projection`, `Q1 Surplus/Deficit`) %>%
-#   arrange(`Pillar Name`) %>%
-#   bookHelpers::format_plot(
-#     "bar_group", set_scale = "m", set_min_y = 0, set_max_y = 1000000000,  margin_b = 50,
-#     bar_anno_col = "Q1 Surplus/Deficit", bar_anno_word_positive = " surplus", bar_anno_word_negative = " deficit") %>%
-#   bookHelpers::export_plotly("pillars", width = "950", height = "500")
-
-```
-
-<!-- \newpage -->
-
-<!-- ### By Pillar -->
-
-```{r, fig.align = "center"}
-#
-# pillar <- compiled %>%
-#   mutate(`Pillar Name` = ifelse(is.na(`Pillar Name`), "Other", `Pillar Name`)) %>%
-#   group_by(`Pillar Name`) %>%
-#   summarize_if(is.numeric, sum)
-#
-# pillar %>%
-#   bookHelpers::format_table_numbers() %>%
-#   kable(booktabs = TRUE, longtable = TRUE, align = c('l', rep('r', 4))) %>%
-#   row_spec(0,  bold = TRUE) %>%
-#   kable_styling(latex_options = c("repeat_header"), font_size = 7)
-#
-# pillar %>%
-#   select(label = `Pillar Name`, `Total Budget`, `Q1 Projection`, `Q1 Surplus/Deficit`) %>%
-#   arrange(`Pillar Name`) %>%
-#   bookHelpers::format_plot(
-#     "bar_group", set_scale = "m", set_min_y = 0, set_max_y = 1000000000,  margin_b = 50,
-#     bar_anno_col = "Q1 Surplus/Deficit", bar_anno_word_positive = " surplus", bar_anno_word_negative = " deficit") %>%
-#   bookHelpers::export_plotly("pillars", width = "950", height = "500")
-
-
 ```

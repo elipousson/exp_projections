@@ -69,7 +69,7 @@ calc_chiefs_report_workday <- function(df) {
     full_join(df %>%
                 group_by(Agency, Service) %>%
                 summarize_at(
-                  vars(!!paste0("FY", params$fy, " Budget"), !!internal$col.proj, !!internal$col.surdef),
+                  vars(!!paste0("FY", params$fy-1, " Actuals"), `YTD Actuals`, !!paste0("FY", params$fy, " Budget"), !!internal$col.proj, !!internal$col.surdef),
                   sum, na.rm = TRUE),
               by = c("Agency", "Service")) %>%
     mutate_if(is.numeric, replace_na, 0) %>%

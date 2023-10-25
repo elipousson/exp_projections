@@ -18,6 +18,7 @@ library(AzureGraph)
 library(scales)
 library(rlist)
 library(lubridate)
+library(janitor)
 
 devtools::load_all("G:/Analyst Folders/Sara Brumfield/_packages/bbmR")
 
@@ -113,7 +114,7 @@ if (is.na(params$compiled_edit)) {
     # rename_factor_object() %>%
     arrange(Agency, Service, `Cost Center`, Fund, Grant, 
             `Special Purpose`, `Spend Category`) %>% 
-    select(`Agency`:`Spend Category`, `YTD Actuals`, !!paste0("FY", params$fy, " Budget"), 
+    select(`Agency`:`Spend Category`, !!paste0("FY", params$fy-1, " Actuals"), `YTD Actuals`, !!paste0("FY", params$fy, " Budget"), 
            starts_with("Q1"), starts_with("Q2"), starts_with("Q3"))
   
   run_summary_reports_workday(df)
@@ -123,47 +124,11 @@ if (is.na(params$compiled_edit)) {
   compiled <- import(params$compiled_edit)
 }
 
-## if GF only is needed
-# compiled <- compiled %>% filter(Fund == "1001 General Fund")
 # Validation ####
 
-##remove payroll forward
-# data <- compiled %>% left_join(back_out, by = c("Agency", "Service", "Cost Center", "Fund", "Grant", "Special Purpose", "Spend Category")) %>%
-#   relocate(`Forward Accrual`, .after = `Q1 Actuals`) %>%
-#   mutate(`Q1 Actual (Clean)` = `Q1 Actuals` - `Forward Accrual`) %>%
-#   relocate(`Q1 Actual (Clean)`, .after = `Forward Accrual`)
-
-##save $$ for next quarter
-# export_excel(data, "Q1 Forward Accrual", paste0("quarterly_outputs/FY23 Q", params$qtr+1, " Forward Accruals.xlsx"))
-
 # which agency files are missing?
-compiled_gf <- compiled %>% filter(Fund == "1001 General Fund")
-missing = list.zip(agencies = unique(analysts$`Agency`)[!unique(analysts$`Agency`) %in% compiled_gf$Agency],
-                    analysts = analysts$Analyst[!analysts$`Agency` %in% compiled_gf$Agency])
-
-## add Total Budget check; helps with identifying deleted line items / doubled agency files=================
-##won't work because no accurate xwalk with BAPS files / replaced with Workday file
-# totals <- import_workday(file_path)
-  # compiled %>%
-  # filter(`Fund` == "1001 General Fund") %>%
-  # group_by(`Agency`, `Service`, `Cost Center`, Fund, Grant, `Special Purpose`) %>%
-  # summarize(`Compiled Total Budget` = sum(!!sym(cols$budget), na.rm = TRUE)) %>%
-  # left_join(
-  #   import(internal$file, which = "CurrentYearExpendituresActLevel") %>%
-  #     set_colnames(rename_cols(.)) %>%
-  #     mutate_at(vars(ends_with("ID")), as.character) %>%
-  #     combine_agencies() %>%
-  #     filter(`Fund ID` == "1001") %>%
-  #     group_by(`Agency Name`, `Service ID`, `Service Name`, `Activity ID`, `Subobject ID`, `Subobject Name`) %>%
-  #     summarize(`Total Budget` = sum(`Total Budget`, na.rm = TRUE)), 
-  #   by = c("Agency Name", "Service ID", "Service Name", "Activity ID", "Subobject ID", "Subobject Name")) %>%
-  # mutate(Difference = `Compiled Total Budget` - `Total Budget`) %>%
-  # filter(`Total Budget` != `Compiled Total Budget`)
-
-# if (nrow(totals) > 0) {
-#   export_excel(totals, "Mismatched Totals", internal$output, "existing") 
-# }
-
+missing = list.zip(agencies = unique(analysts$`Agency`)[!unique(analysts$`Agency`) %in% compiled$Agency],
+                    analysts = analysts$Analyst[!analysts$`Agency` %in% compiled$Agency])
 
 
 # Export ####
@@ -181,4 +146,4 @@ colors = bbmR::colors$hex
 rmarkdown::render('r/Chiefs_Report.Rmd',
                   output_file = paste0("FY", params$fy,
                                        " Q", params$qtr, " Chiefs Report.pdf"),
-                  output_dir = 'G://Analyst Folders/Sara Brumfield/quarterly_reports/exp_projections/quarterly_outputs')
+                  output_dir = 'C:/Users/sara.brumfield2/OneDrive - City Of Baltimore/_Code/quarterly_reports/exp_projections/quarterly_outputs')
