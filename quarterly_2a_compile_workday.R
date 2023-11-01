@@ -50,7 +50,14 @@ site <- conn$get_sharepoint_site("https://bmore.sharepoint.com/sites/DOF-Bureauo
 
 drive <- site$get_drive("2024")
 folder <- drive$get_item("8-Q1")$get_item("2-Projections")
-file$download(path = paste0(getwd(), "/downloads/"))
+files = folder$list_files() %>%
+  filter(!grepl("PABC", name))
+
+for (f in files$name) {
+  file = folder$get_item(f)
+  file$download()
+}
+
 
 internal <- setup_internal(proj = "quarterly")
 
