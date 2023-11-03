@@ -4,7 +4,7 @@ params <- list(
   fy = 24,
   qtr = 1,
   calendar_year = 23,
-  calendar_month = 9, ##from start of FY??
+  calendar_month = 9, 
   # NA if there is no edited compiled file / file path
   compiled_edit = NA)
 
@@ -50,21 +50,23 @@ site <- conn$get_sharepoint_site("https://bmore.sharepoint.com/sites/DOF-Bureauo
 
 drive <- site$get_drive("2024")
 folder <- drive$get_item("8-Q1")$get_item("2-Projections")
-files = folder$list_files() %>%
+files <- folder$list_files() %>%
   filter(!grepl("PABC", name))
+
+if (dim(files)[1] != 53) {warning("Check files for missing or extra.")} else {warning("53 agency files found.")}
+
+path <- "C:/Users/sara.brumfield2/OneDrive - City Of Baltimore/_Code/quarterly_reports/exp_projections/inputs/"
 
 for (f in files$name) {
   file = folder$get_item(f)
-  file$download()
+  url = paste0(path, f)
+  file$download(url, overwrite = TRUE)
 }
 
 
 internal <- setup_internal(proj = "quarterly")
 
-internal$analyst_files <- if (params$qtr == 1) {
-  paste0("C:/Users/sara.brumfield2/OneDrive - City Of Baltimore/_Code/quarterly_reports/exp_projections/inputs")} else if (params$qtr == 2) {
-    paste0("G:/Fiscal Years/Fiscal 20", params$fy, "/Projections Year/4. Quarterly Projections/", params$qtr, "nd Quarter/4. Expenditure Backup")} else if (params$qtr == 3) {
-      paste0("G:/Fiscal Years/Fiscal 20", params$fy, "/Projections Year/4. Quarterly Projections/", params$qtr+1, "rd Quarter/4. Expenditure Backup")} 
+internal$analyst_files <- paste0("C:/Users/sara.brumfield2/OneDrive - City Of Baltimore/_Code/quarterly_reports/exp_projections/inputs") 
 
 cols <- list(calc = paste0("Q", params$qtr, " Calculation"),
              proj = paste0("Q", params$qtr, " Projection"),
@@ -91,6 +93,11 @@ if (is.na(params$compiled_edit)) {
     mutate(!!sym(internal$col.surdef) := !!sym(paste0("FY", params$fy, " Budget")) - !!sym(internal$col.proj)) %>%
     filter(!is.na(`Cost Center`))
   
+  ##duplicate check
+  dupes <- compiled[duplicated(compiled[, c("Agency", "Service", "Cost Center", "Fund", "Grant", "Special Purpose", "Spend Category")]),]
+  
+  if (dim(dupes)[1] > 0) {warning("Duplicate rows found.")} else {warning("No duplicates found.")}
+  
   if (params$qtr > 1) {
     compiled <- compiled %>%
       mutate(!!paste0("Q", params$qt - 1, " Surplus/Deficit") := 
@@ -110,11 +117,6 @@ if (is.na(params$compiled_edit)) {
              !!sym(internal$col.calc)) %>%
     summarize_if(is.numeric, sum, na.rm = TRUE) %>%
     ungroup()
-  
-  # if (params$qt == 1) {
-  #   compiled %>%
-  #     mutate(`Q1 Projection` = ifelse(`Subobject ID` == "161", `YTD Exp` * 2, `Q1 Projection`))
-  # }
   
   df <- df %>%
     # combine_agencies() %>%
