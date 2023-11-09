@@ -60,7 +60,7 @@ raw <- import(file_name, skip = 10) %>%
 
 ##PABC ====
 raw <- import(file_name, skip = 10) %>%
-  filter(`Cost Center` != "Total" & Fund %in% c("2075 Parking Facilities Fund", "2076 Parking Management Fund (General Fund)")) %>%
+  filter(`Cost Center` != "Total" & Fund %in% c("2075 Parking Facilities Fund", "2076 Parking Management (General Fund)")) %>%
   rename(`Jul 23 Actuals` = `Actuals...29`, `Jul 23 Obligations` = `Obligations...30`,
          `Aug 23 Actuals` = `Actuals...32`, `Aug 23 Obligations` = `Obligations...33`,
          `Sep 23 Actuals` = `Actuals...35`, `Sep 23 Obligations` = `Obligations...36`,
@@ -75,6 +75,10 @@ hist_data <- import("inputs/FY23 Historical Data.csv", skip = 10) %>%
   group_by(`Agency`, `Service`, `Cost Center`, `Fund`, `Grant`, `Special Purpose`, `Spend Category`) %>%
   summarise_at(vars(`Revised Budget`, `Total Spent`, `Total Actuals`), sum, na.rm = TRUE) %>%
   rename(`FY23 Budget` = `Revised Budget`, `FY23 Actuals` = `Total Actuals`, `FY23 Spend` = `Total Spent`)
+
+hist_actual <- sum(hist_data$`FY23 Actuals`, na.rm = TRUE)
+hist_spend <- sum(hist_data$`FY23 Spend`, na.rm = TRUE)
+hist_budget <- sum(hist_data$`FY23 Budget`, na.rm = TRUE)
 
 ##resume code ====
 raw$`YTD Actuals` <- rowSums(raw[, grep("Actuals$", names(raw))])
@@ -95,6 +99,7 @@ check_budget <- sum(grouped$`FY24 Budget`, na.rm = TRUE)
 
 assertthat::assert_that(total_actual == check_actual, total_spend == check_spend, total_budget == check_budget)
 
+##GF only====
 hist_data <- import("inputs/FY23 Historical Data.csv", skip = 10) %>%
   select(Agency, Service, `Cost Center`, Fund, Grant, `Special Purpose`, `Spend Category`, `Revised Budget`, `Total Spent`, `Total Actuals`) %>%
   filter(`Cost Center` != "Total" & Fund == "1001 General Fund") %>%
