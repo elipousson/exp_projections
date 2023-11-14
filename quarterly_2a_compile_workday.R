@@ -33,7 +33,6 @@ source("expProjections/R/2_rename_factor_object.R")
 source("expProjections/R/1_apply_excel_formulas.R")
 source("r/setup.R")
 source("G:/Budget Publications/automation/0_data_prep/bookHelpers/R/plots.R")
-# source("G:/Budget Publications/automation/1_prelim_exec_sota/bookPrelimExecSOTA/R/plot_functions.R")
 source("G:/Budget Publications/automation/1_prelim_exec_sota/bookPrelimExecSOTA/R/plot_functions2.R")
 source("G:/Budget Publications/automation/0_data_prep/bookHelpers/R/formatting.R")
 source("G:/Analyst Folders/Sara Brumfield/_packages/bbmR/R/bbmr_colors.R")
@@ -51,7 +50,7 @@ site <- conn$get_sharepoint_site("https://bmore.sharepoint.com/sites/DOF-Bureauo
 drive <- site$get_drive("2024")
 folder <- drive$get_item("8-Q1")$get_item("2-Projections")
 files <- folder$list_files() %>%
-  filter(!grepl("PABC", name))
+  filter(!grepl("Parking Authority|PABC", name))
 
 if (dim(files)[1] != 53) {warning("Check files for missing or extra.")} else {warning("53 agency files found.")}
 
