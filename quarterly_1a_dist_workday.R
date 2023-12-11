@@ -12,6 +12,7 @@ library(purrr)
 library(magrittr)
 library(janitor)
 
+##will need local files and package files
 source("r/setup.R")
 source("r/1_make_agency_files.R")
 source("expProjections/R/1_apply_excel_formulas.R")
@@ -33,10 +34,11 @@ analysts <- import("C:/Users/sara.brumfield2/OneDrive - City Of Baltimore/_Code/
 ##distribution prep ==============
 params <- list(qtr = 1,
                fy = 24,
-               fiscal_month = 3,
-               calendar_month = 9,
+               fiscal_month = 3, ##last month of quarter for report, not current month; e.g., September = 3
+               calendar_month = 9, ##last month of quarter for report, not current month; e.g., September = 9
                calendar_year = 23)
 
+##make list of column names dynamically
 cols <- list(calc = paste0("Q", params$qtr, " Calculation"),
              proj = paste0("Q", params$qtr, " Projection"),
              surdef = paste0("Q", params$qtr, " Surplus/Deficit"),
@@ -45,12 +47,15 @@ cols <- list(calc = paste0("Q", params$qtr, " Calculation"),
              workday = as.list(outer(c("Jul 23", cols$months), c("Actuals", "Obligations"), paste)),
              order = factor(as.list(outer(c("Jul 23", cols$months), c("Actuals", "Obligations"), paste)), levels = c("Jul 23", cols$months)))
 
+##assign to workday cols
 names(cols$workday) = cols$workday
 
+##save budget vs actuals bbmr file from WD as "FYnn Qn Actuals.xlsx" in the inputs folder
 file_name <- paste0("inputs/FY", params$fy, " Q", params$qt, " Actuals.xlsx")
 
 raw <- import(file_name, skip = 10) %>%
   filter(`Cost Center` != "Total" & Fund == "1001 General Fund") %>%
+  ##this should be tested and adjusted manually each quarter
   rename(`Jul 23 Actuals` = `Actuals...32`, `Jul 23 Obligations` = `Obligations...33`,
          `Aug 23 Actuals` = `Actuals...35`, `Aug 23 Obligations` = `Obligations...36`,
          `Sep 23 Actuals` = `Actuals...38`, `Sep 23 Obligations` = `Obligations...39`,
@@ -68,45 +73,54 @@ raw <- import(file_name, skip = 10) %>%
   select(Agency, Service, `Cost Center`, Fund, Grant, `Special Purpose`, `BPFS Object`, `Spend Category`, 
          `Jul 23 Actuals`:`Sep 23 Obligations`, `FY24 Budget`, -starts_with("Commitments"))
 
+##update historical data every year
 hist_data <- import("inputs/FY23 Historical Data.csv", skip = 10) %>%
   select(Agency, Service, `Cost Center`, Fund, Grant, `Special Purpose`, `Spend Category`, 
          `Revised Budget`, `Total Spent`, `Total Actuals`) %>%
   filter(`Cost Center` != "Total" & Fund %in% c("2075 Parking Facilities Fund", "2076 Parking Management Fund (General Fund)")) %>%
   group_by(`Agency`, `Service`, `Cost Center`, `Fund`, `Grant`, `Special Purpose`, `Spend Category`) %>%
   summarise_at(vars(`Revised Budget`, `Total Spent`, `Total Actuals`), sum, na.rm = TRUE) %>%
+  ##update column names every year
   rename(`FY23 Budget` = `Revised Budget`, `FY23 Actuals` = `Total Actuals`, `FY23 Spend` = `Total Spent`)
 
+##update column names every year
 hist_actual <- sum(hist_data$`FY23 Actuals`, na.rm = TRUE)
 hist_spend <- sum(hist_data$`FY23 Spend`, na.rm = TRUE)
 hist_budget <- sum(hist_data$`FY23 Budget`, na.rm = TRUE)
 
-##resume code ====
+##resume code for either PABC or all data set ====
 raw$`YTD Actuals` <- rowSums(raw[, grep("Actuals$", names(raw))])
 raw$`YTD Obligations` <- rowSums(raw[, grep("Obligations$", names(raw))])
 raw$`YTD Spend` <- raw$`YTD Actuals` + raw$`YTD Obligations`
 
 total_actual <- sum(raw$`YTD Actuals`, na.rm = TRUE)
 total_spend <- sum(raw$`YTD Spend`, na.rm = TRUE)
+##adjust each year
 total_budget <- sum(raw$`FY24 Budget`, na.rm = TRUE)
 
 grouped <- raw %>%
   group_by(`Agency`, `Service`, `Cost Center`, `Fund`, `Grant`, `Special Purpose`, `BPFS Object`, `Spend Category`) %>%
+  ##adjust month columns based on quarter
   summarise_at(vars(`FY24 Budget`, `YTD Actuals`, `YTD Spend`, `YTD Obligations`, `Jul 23 Actuals`:`Sep 23 Obligations`), sum, na.rm = TRUE)
 
 check_actual <- sum(grouped$`YTD Actuals`, na.rm = TRUE)
 check_spend <- sum(grouped$`YTD Spend`, na.rm = TRUE)
+##adjust each year
 check_budget <- sum(grouped$`FY24 Budget`, na.rm = TRUE)
 
 assertthat::assert_that(total_actual == check_actual, total_spend == check_spend, total_budget == check_budget)
 
 ##GF only====
+##update historical data file each fiscal year
 hist_data <- import("inputs/FY23 Historical Data.csv", skip = 10) %>%
   select(Agency, Service, `Cost Center`, Fund, Grant, `Special Purpose`, `Spend Category`, `Revised Budget`, `Total Spent`, `Total Actuals`) %>%
   filter(`Cost Center` != "Total" & Fund == "1001 General Fund") %>%
   group_by(`Agency`, `Service`, `Cost Center`, `Fund`, `Grant`, `Special Purpose`, `Spend Category`) %>%
   summarise_at(vars(`Revised Budget`, `Total Spent`, `Total Actuals`), sum, na.rm = TRUE) %>%
+  ##update column names each fiscal year
   rename(`FY23 Budget` = `Revised Budget`, `FY23 Actuals` = `Total Actuals`, `FY23 Spend` = `Total Spent`)
 
+#update column names to correct FY each year
 hist_actual <- sum(hist_data$`FY23 Actuals`, na.rm = TRUE)
 hist_spend <- sum(hist_data$`FY23 Spend`, na.rm = TRUE)
 hist_budget <- sum(hist_data$`FY23 Budget`, na.rm = TRUE)
@@ -114,7 +128,8 @@ hist_budget <- sum(hist_data$`FY23 Budget`, na.rm = TRUE)
 #add excel formula for calculations ==================
 #bring in previous quarter's calcs
 prev_calcs <- import(ifelse(params$qtr != 1, paste0("quarterly_outputs/FY23 Q", params$qtr-1," Analyst Calcs.csv"), paste0("quarterly_outputs/FY", params$fy-1, " Q3 Analyst Calcs.csv"))) %>%
-  select(Agency:`Spend Category`, `Q3 Calculation`, Notes, -`BPFS Object`)
+ ##update Qn Calculation column for the previous quarter
+   select(Agency:`Spend Category`, `Q3 Calculation`, Notes, -`BPFS Object`)
 
 projections <- grouped %>%
   full_join(hist_data, by = c("Agency", "Service", "Cost Center", "Fund", "Grant", "Special Purpose", "Spend Category")) %>% 
@@ -122,6 +137,7 @@ projections <- grouped %>%
 
 join_actual <- sum(projections$`YTD Actuals`, na.rm = TRUE)
 join_spend <- sum(projections$`YTD Spend`, na.rm = TRUE)
+##update column names each year
 join_budget <- sum(projections$`FY24 Budget`, na.rm = TRUE)
 prev_actual <- sum(projections$`FY23 Actuals`, na.rm = TRUE)
 prev_spend <- sum(projections$`FY23 Spend`, na.rm = TRUE)
@@ -135,8 +151,10 @@ assertthat::assert_that(prev_actual == hist_actual, prev_spend == hist_spend, pr
 ##organize columns and remove FY24 empty rows and adorn totals
 projections <- projections %>%
   # mutate(Calculation = ifelse(params$qtr != 1, !!sym("Q1 Calculation"), !!sym("Q3 Calculation"))) %>%
+  ##adjust each quarter
   rename(`Q1 Calculation` = `Q3 Calculation`) %>%
   mutate(`Workday Agency ID` = str_sub(Agency, start = 1, end = 7)) %>%
+  ##adjust column names each quarter
   select(`Workday Agency ID`, Agency, Service, `Cost Center`, Fund, Grant, `Special Purpose`, `BPFS Object`, `Spend Category`, 
          `FY23 Actuals`, `FY23 Budget`, `FY24 Budget`, `Jul 23 Actuals`:`Sep 23 Obligations`,
          `YTD Actuals`, `YTD Obligations`, `YTD Spend`, `Q1 Calculation`, Notes) %>%
@@ -144,6 +162,7 @@ projections <- projections %>%
 
 output_actual <- sum(projections$`YTD Actuals`, na.rm = TRUE)
 output_spend <- sum(projections$`YTD Spend`, na.rm = TRUE)
+##adjust column name each year
 output_budget <- sum(projections$`FY24 Budget`, na.rm = TRUE)
 
 assertthat::assert_that(output_actual == total_actual, output_spend == total_spend, output_budget == total_budget)
@@ -152,6 +171,7 @@ assertthat::assert_that(output_actual == total_actual, output_spend == total_spe
 export_excel(projections, "Citywide Projections", paste0("quarterly_outputs/FY", params$fy, " Q", params$qtr, " Citywide Projection Data.xlsx"))
 
 #update col names for new FY
+##creates calculation type cells in Excel output
 make_proj_formulas <- function(df, manual = "zero") {
   
   # manual should be "zero" if manual OSOs should default to 0, or "last" if they
@@ -168,9 +188,11 @@ make_proj_formulas <- function(df, manual = "zero") {
 
 output <- projections %>%
   make_proj_formulas() %>%
+  ##rename columns each quarter
   rename(`Q1 Projection` = Projection, `Q1 Surplus/Deficit` = `Surplus/Deficit`) %>%
   relocate(Notes, .after = `Q1 Surplus/Deficit`)
 
+##create list of drop down calculations for Excel
 calc.list <- data.frame("Calculations" = c("No Funds Expended", "At Budget", "YTD", "Straight", "YTD & Encumbrance", "Manual", "Straight & Encumbrance"))
 
 #export =====================
