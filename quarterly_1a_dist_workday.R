@@ -51,11 +51,13 @@ cols <- list(calc = paste0("Q", params$qtr, " Calculation"),
 names(cols$workday) = cols$workday
 
 ##save budget vs actuals bbmr file from WD as "FYnn Qn Actuals.xlsx" in the inputs folder
-file_name <- paste0("inputs/FY", params$fy, " Q", params$qt, " Actuals.xlsx")
+file_name <- paste0("inputs/FY", params$fy, " Q", params$qtr, " Actuals.xlsx")
 
 raw <- import(file_name, skip = 10) %>%
   filter(`Cost Center` != "Total" & Fund == "1001 General Fund") %>%
   ##this should be tested and adjusted manually each quarter
+  ##Q2 = Oct, Nov, Dec
+  ##check column # for Jul-Sep
   rename(`Jul 23 Actuals` = `Actuals...32`, `Jul 23 Obligations` = `Obligations...33`,
          `Aug 23 Actuals` = `Actuals...35`, `Aug 23 Obligations` = `Obligations...36`,
          `Sep 23 Actuals` = `Actuals...38`, `Sep 23 Obligations` = `Obligations...39`,

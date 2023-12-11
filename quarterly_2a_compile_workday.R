@@ -45,7 +45,7 @@ conn <-  AzureGraph::create_graph_login(tenant = "bmore",
                                         password=Sys.getenv("GRAPH_BBMR_INTERNAL_VALUE"))
 
 
-site <- conn$get_sharepoint_site("https://bmore.sharepoint.com/sites/DOF-BureauoftheBudgetandManagementResearch")
+site <- conn$get_sharepoint_site("https://bmore.sharepoint.com/sites/DOF-Budget")
 
 drive <- site$get_drive("2024")
 folder <- drive$get_item("8-Q1")$get_item("2-Projections")
