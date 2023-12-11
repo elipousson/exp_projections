@@ -20,7 +20,7 @@ library(rlist)
 library(lubridate)
 library(janitor)
 
-devtools::load_all("G:/Analyst Folders/Sara Brumfield/_packages/bbmR")
+devtools::load_all("C:/Users/sara.brumfield2/OneDrive - City Of Baltimore/_Code/_packages/bbmR")
 
 source("expProjections/R/1_apply_excel_formulas.R")
 source("expProjections/R/1_export.R")
@@ -50,10 +50,12 @@ site <- conn$get_sharepoint_site("https://bmore.sharepoint.com/sites/DOF-Bureauo
 drive <- site$get_drive("2024")
 folder <- drive$get_item("8-Q1")$get_item("2-Projections")
 files <- folder$list_files() %>%
+  ##adjust filter based on what's in the folder to get just the analyst files
   filter(!grepl("Parking Authority|PABC", name))
 
 if (dim(files)[1] != 53) {warning("Check files for missing or extra.")} else {warning("53 agency files found.")}
 
+##save each file to the inputs subfolder
 path <- "C:/Users/sara.brumfield2/OneDrive - City Of Baltimore/_Code/quarterly_reports/exp_projections/inputs/"
 
 for (f in files$name) {
@@ -62,20 +64,23 @@ for (f in files$name) {
   file$download(url, overwrite = TRUE)
 }
 
-
+##format variables
 internal <- setup_internal(proj = "quarterly")
 
+##import file names
 internal$analyst_files <- paste0("C:/Users/sara.brumfield2/OneDrive - City Of Baltimore/_Code/quarterly_reports/exp_projections/inputs") 
 
+##set up column names dynamically
 cols <- list(calc = paste0("Q", params$qtr, " Calculation"),
              proj = paste0("Q", params$qtr, " Projection"),
              surdef = paste0("Q", params$qtr, " Surplus/Deficit"),
              budget = paste0("FY", params$fy, " Budget"))
 
-#analyst assignments
-analysts <- import("G:/Analyst Folders/Sara Brumfield/_ref/Analyst Assignments.xlsx") %>%
+##analyst assignments
+analysts <- import("C:/Users/sara.brumfield2/OneDrive - City Of Baltimore/_Code/_ref/Analyst Assignments.xlsx") %>%
   filter(Projections == TRUE)
 
+##bring files together into one data set
 if (is.na(params$compiled_edit)) {
   
   data <- list.files(internal$analyst_files, pattern = paste0("FY", params$fy, " .*Q", params$qtr ,"-.*xlsx"),
