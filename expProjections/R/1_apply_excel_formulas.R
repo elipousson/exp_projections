@@ -1,5 +1,5 @@
 #' Apply formula class
-#' 
+#'
 #' Set a column's class to formula so that Excel interprets the formulas originally written as strings in R.
 #'
 #' @param df
@@ -15,7 +15,7 @@ apply_formula_class <- function(df, cols) {
   for (i in cols) {
     class(df[[i]]) <- "formula"
   }
-  
+
   return(df)
 }
 
@@ -32,7 +32,6 @@ apply_formula_class <- function(df, cols) {
 #' @export
 
 apply_excel_formulas <- function(agency_id, list) {
-
   agency_id <- as.character(agency_id)
   data <- list[[agency_id]]
 
@@ -42,24 +41,27 @@ apply_excel_formulas <- function(agency_id, list) {
 
   data$program.surdef <- data$program.surdef %>%
     apply_formula_class(paste("Object", 0:9))
-  
+
   get_col_names <- function(df) {
     df %>%
-      select(matches(paste0("Q", 1:4, collapse = "|")), !!cols$adopted, 
-             `Total Budget`, `YTD Exp`) %>%
+      select(
+        matches(paste0("Q", 1:4, collapse = "|")), !!cols$adopted,
+        `Total Budget`, `YTD Exp`
+      ) %>%
       names(.)
   }
 
   if (params$qt != 1) {
     data$object <- apply_formula_class(
-      data$object, c(get_col_names(data$object), "Projection Diff"))
-    
+      data$object, c(get_col_names(data$object), "Projection Diff")
+    )
+
     data$subobject <- apply_formula_class(
-      data$subobject, c(get_col_names(data$subobject), "Projection Diff"))
-    
+      data$subobject, c(get_col_names(data$subobject), "Projection Diff")
+    )
   } else {
     data$object <- apply_formula_class(data$object, get_col_names(data$object))
-    
+
     data$subobject <- apply_formula_class(data$subobject, get_col_names(data$subobject))
   }
 

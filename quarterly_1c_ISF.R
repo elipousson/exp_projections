@@ -1,4 +1,4 @@
-##file distribution for other funds
+## file distribution for other funds
 
 .libPaths("C:/Users/sara.brumfield2/OneDrive - City Of Baltimore/Documents/r_library")
 source("r/setup.R")

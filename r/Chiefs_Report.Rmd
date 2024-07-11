@@ -40,24 +40,26 @@ knitr::opts_chunk$set(
   warning = FALSE
 )
 
-options(knitr.table.format = "latex",
-        knitr.kable.NA = '')
+options(
+  knitr.table.format = "latex",
+  knitr.kable.NA = ""
+)
 ```
 
 ```{r Agency Table, fig.align = "center"}
-
 chiefs_report %>%
   select(-`FY23 Actuals`, -`YTD Actuals`) %>%
-kable(booktabs = TRUE, longtable = TRUE, align = c('l', 'l', rep('r', 8))) %>%
-  collapse_rows(1:2, row_group_label_position = 'stack', longtable_clean_cut = FALSE,
-              latex_hline = "major", headers_to_remove = 1:2) %>%
-  row_spec(0,  bold = TRUE) %>%
-  row_spec(nrow(chiefs_report) - 1,  hline_after = TRUE) %>%
+  kable(booktabs = TRUE, longtable = TRUE, align = c("l", "l", rep("r", 8))) %>%
+  collapse_rows(1:2,
+    row_group_label_position = "stack", longtable_clean_cut = FALSE,
+    latex_hline = "major", headers_to_remove = 1:2
+  ) %>%
+  row_spec(0, bold = TRUE) %>%
+  row_spec(nrow(chiefs_report) - 1, hline_after = TRUE) %>%
   row_spec(c(nrow(chiefs_report), which(chiefs_report$Service == "Agency Total")), bold = TRUE) %>%
   column_spec(2, "2.5in") %>%
   column_spec(3:10, ".75in") %>%
   kable_styling(latex_options = c("repeat_header"), font_size = 8)
-
 ```
 
 \newpage
@@ -65,39 +67,44 @@ kable(booktabs = TRUE, longtable = TRUE, align = c('l', 'l', rep('r', 8))) %>%
 ### By Ledger Account Summary
 
 ```{r Ledger Account Summary Table, fig.align = "center"}
-
 ledger_summary <- import("G:/Analyst Folders/Sara Brumfield/_ref/Ledger Summary to Spend Category Map.xlsx") %>%
-select(`Spend Category`, `Ledger Summary`)
+  select(`Spend Category`, `Ledger Summary`)
 
 ledger <- compiled %>%
-  select(`Spend Category`, !!sym(paste0("FY", params$fy-1, " Actuals")), `YTD Actuals`,
-         !!sym(paste0("FY", params$fy, " Budget")), !!sym(internal$col.proj), !!sym(internal$col.surdef)) %>%
+  select(
+    `Spend Category`, !!sym(paste0("FY", params$fy - 1, " Actuals")), `YTD Actuals`,
+    !!sym(paste0("FY", params$fy, " Budget")), !!sym(internal$col.proj), !!sym(internal$col.surdef)
+  ) %>%
   left_join(ledger_summary, by = "Spend Category") %>%
   group_by(`Ledger Summary`) %>%
   summarize_if(is.numeric, sum) %>%
-  mutate(`Ledger Summary` = case_when(is.na(`Ledger Summary`) ~ "Blank",
-                                      TRUE ~ `Ledger Summary`)) %>%
+  mutate(`Ledger Summary` = case_when(
+    is.na(`Ledger Summary`) ~ "Blank",
+    TRUE ~ `Ledger Summary`
+  )) %>%
   adorn_totals()
 
 ledger %>%
   format_table_numbers() %>%
-  kable(booktabs = TRUE, longtable = TRUE, align = c('l', rep('r', 5))) %>%
-  row_spec(0,  bold = TRUE) %>%
-  row_spec(6,  bold = TRUE) %>%
+  kable(booktabs = TRUE, longtable = TRUE, align = c("l", rep("r", 5))) %>%
+  row_spec(0, bold = TRUE) %>%
+  row_spec(6, bold = TRUE) %>%
   kable_styling(latex_options = c("repeat_header"), font_size = 10)
 ```
 
 ```{r Ledger Account Summary Graph, fig.align='center'}
-
 ledger %>%
-  select(label = `Ledger Summary`, !!sym(paste0("FY", params$fy, " Budget")), 
-         !!sym(paste0("Q", params$qtr, " Projection")), !!sym(paste0("Q", params$qtr, " Surplus/Deficit"))) %>%
+  select(
+    label = `Ledger Summary`, !!sym(paste0("FY", params$fy, " Budget")),
+    !!sym(paste0("Q", params$qtr, " Projection")), !!sym(paste0("Q", params$qtr, " Surplus/Deficit"))
+  ) %>%
   filter(label != "Total") %>%
   arrange(label) %>%
   format_plot(
     type = "bar_group", set_scale = "m", title = "Quarterly Projection vs Budget", margin_t = 50, show_y = TRUE,
     set_min_y = -200000000, set_max_y = 1600000000, legend_y = -.1, bar_anno_y = 150000000,
-    bar_anno_col = "Q1 Surplus/Deficit", bar_anno_word_positive = " surplus", bar_anno_word_negative = " deficit") %>%
+    bar_anno_col = "Q1 Surplus/Deficit", bar_anno_word_positive = " surplus", bar_anno_word_negative = " deficit"
+  ) %>%
   orca(file = "ledger.pdf", width = "800", height = "400")
 
 include_graphics("ledger.pdf")
